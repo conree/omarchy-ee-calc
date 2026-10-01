@@ -126,7 +126,7 @@ below it include the historical values (2.7, 3.0, 3.3 … 8.2) that the
 
 ## Architecture
 
-![EE Calc architecture](docs/architecture.svg)
+![EE Calc architecture](docs/architecture.png)
 
 Grey dashed boxes are planned features. The diagram is generated from
 `docs/architecture.dot` with Graphviz.

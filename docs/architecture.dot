@@ -1,5 +1,7 @@
-// EE Calc architecture. Source for docs/architecture.svg; regenerate with:
-//   dot -Tsvg:cairo docs/architecture.dot -o docs/architecture.svg
+// EE Calc architecture. Source for docs/architecture.png; regenerate with:
+//   dot -Tpng -Gdpi=144 docs/architecture.dot -o docs/architecture.png
+// Published as a PNG, not an outlined SVG: the Comic Code licence does not
+// allow distributing its glyph outlines in a reusable form.
 // Colours are the Dracula Pro Van Helsing palette; grey dashed boxes are
 // planned, not built. Every label is a table so multi-line text keeps its
 // line spacing.
