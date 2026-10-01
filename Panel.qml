@@ -327,7 +327,9 @@ Panel {
 
   function loadText(load, rating) {
     if (!load || !load.power) return ""
-    return Model.text(load.power) + " of " + Model.text(rating) + "  (" + Math.round(load.pct) + " %)"
+    // Below 1 % rounds to "0 %", which reads as no power at all.
+    var pct = load.pct > 0 && load.pct < 1 ? "<1" : String(Math.round(load.pct))
+    return Model.text(load.power) + " of " + Model.text(rating) + "  (" + pct + " %)"
   }
 
   // Keys typed into a field belong to the field. Esc closes the panel in one
