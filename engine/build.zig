@@ -3,7 +3,9 @@ const std = @import("std");
 // `zig build` installs the engine into ../bin/, where the plugin's QML runs
 // it from. `zig build test` runs every unit test.
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    // Baseline CPU by default: the binary committed to bin/ is the one
+    // users run, so it must not use instructions only this machine has.
+    const target = b.standardTargetOptions(.{ .default_target = .{ .cpu_model = .baseline } });
     const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSafe });
 
     const exe = b.addExecutable(.{

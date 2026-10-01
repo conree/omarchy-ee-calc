@@ -80,7 +80,8 @@ tests.
 ## How it works
 
 The panel is QML. Every calculation is done by a small Zig program,
-`bin/ee-calc`, which the panel runs as you type. The program prints one
+`bin/ee-calc` (a 450 KB static x86-64 binary, built from `engine/`),
+which the panel runs as you type. The program prints one
 JSON object and nothing else. It makes no network connections, needs no
 privileges and writes no files. The panel itself writes only its own
 entry in `shell.json` (the settings below). Copying a part number uses
@@ -92,33 +93,89 @@ below it include the historical values (2.7, 3.0, 3.3 … 8.2) that the
 
 ## Install
 
-`omarchy plugin add` clones the repository but does not build anything,
-so build the engine once after adding:
+You need Omarchy Quattro on a 64-bit Intel or AMD PC. Nothing else: the
+calculator program comes ready-built in the plugin.
+
+**1. Add the plugin.** In a terminal, run:
 
 ```
-omarchy plugin add <repo-url>
-cd ~/.config/omarchy/plugins/conree.ee-calc/engine
-zig build --release
+omarchy plugin add https://github.com/conree/omarchy-ee-calc.git
+```
+
+That address is this GitHub page. Omarchy downloads the plugin to
+`~/.config/omarchy/plugins/conree.ee-calc/` and leaves it switched off, so
+you can look through it first if you want to.
+
+**2. Switch it on:**
+
+```
 omarchy plugin enable conree.ee-calc
 ```
 
-You need Zig 0.16.0 exactly: the engine uses the `std.process.Init` and
-`std.Io` interfaces that arrived in 0.16, and `build.zig.zon` declares it.
-The build writes `bin/ee-calc`, a static x86-64 binary of about 430 KB.
-The binary is not committed; the repository is source only. Until it is
-built, the panel says the engine is missing
-rather than showing blank results.
+A calculator icon appears on the right of your bar.
 
-Build somewhere other than the installed plugin folder if you can. The
-shell watches `~/.config/omarchy/plugins/` and reloads plugins whenever a
-file changes there, including Zig's build cache.
+**3. Try it.** Click the icon and type `4k7` in the Value box. You should
+see the nearest standard values in every series.
 
-To run the engine's tests:
+If the panel says the calculator program is missing, the download was
+incomplete: remove the plugin (below) and add it again.
+
+### Update
 
 ```
-cd engine
-zig build test
+omarchy plugin update conree.ee-calc
 ```
+
+Each update brings the matching ready-built program with it.
+
+### Remove
+
+```
+omarchy plugin remove conree.ee-calc
+```
+
+### Download only the program
+
+Every version is also published on the
+[Releases page](https://github.com/conree/omarchy-ee-calc/releases), with
+the program and its SHA-256 checksum. The **Releases** link on the right of
+the GitHub page goes there.
+
+## Build from source (optional)
+
+You do not need this to use the plugin. It is for checking that the
+ready-built program matches the source, or for changing it.
+
+1. Install Zig 0.16 (the engine uses language features that arrived in
+   0.16):
+
+   ```
+   sudo pacman -S zig
+   zig version
+   ```
+
+   The second command should print `0.16.0`.
+
+2. Build, keeping Zig's cache outside the plugins folder (Omarchy reloads
+   plugins whenever a file changes there):
+
+   ```
+   cd ~/.config/omarchy/plugins/conree.ee-calc/engine
+   zig build --release --cache-dir ~/.cache/ee-calc
+   ```
+
+3. Compare with the published checksum:
+
+   ```
+   cd ..
+   sha256sum -c bin/ee-calc.sha256
+   ```
+
+   `bin/ee-calc: OK` means your build is byte-for-byte identical to the
+   one shipped. The build is reproducible and targets a baseline x86-64
+   processor, so it runs on any 64-bit Intel or AMD machine.
+
+Run the tests with `zig build test` in `engine/`.
 
 ## Use
 
@@ -153,12 +210,6 @@ included here; the plugin only refers to it by name.
 Colours come from the active Omarchy theme: the accent, the theme's red
 for large errors, and its green and yellow (`color2` and `color3` in
 `colors.toml`) for close and fair matches.
-
-## Remove
-
-```
-omarchy plugin remove conree.ee-calc
-```
 
 ## License
 
