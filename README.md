@@ -41,22 +41,31 @@ how hard each resistor is working against its package rating.
 ## Screenshots
 
 **E-series:** the nearest value in every series, with the error
-colour-coded (green within 1 %, yellow within 5 %, red beyond), plus the
-best two-part combination.
+colour-coded (green within 1 %, yellow within 5 %, red beyond), the best
+two-part combination, and part numbers for the chosen package and
+tolerance.
 
 ![E-series panel](docs/screenshots/e-series.png)
 
-**Divider, Analyse:** a live schematic of the divider you entered, with
-Vout, current, power and source resistance underneath. With a load across
-R2, the schematic draws it in and the panel adds the unloaded Vout and the
-load's current and power for comparison.
+**Divider, Analyse:** a live schematic with Vout, current and each
+resistor's power against its package rating. Here R1 is at 97 % of an
+0603's rating, so it shows in yellow.
 
-![Divider analysis panel with a load](docs/screenshots/divider-loaded.png)
+![Divider analysis panel](docs/screenshots/divider-analyse.png)
 
-**Divider, Find values:** the best standard R1/R2 pairs for a target
-Vout, ranked by error, with the current each pair draws.
+**Divider with a load:** the load is drawn into the schematic, and the
+panel adds the unloaded Vout and the load's current and power.
+
+![Divider analysis with a load](docs/screenshots/divider-loaded.png)
+
+**Divider, Find values:** the best standard R1/R2 pairs for a target Vout,
+ranked by error, with part numbers for the best pair.
 
 ![Divider design panel](docs/screenshots/divider-find-values.png)
+
+**Through-hole:** ¼ W and ½ W metal-film parts, here a 4.7 kΩ 5 % resistor.
+
+![Through-hole part](docs/screenshots/through-hole.png)
 
 Shown with the Dracula Pro Van Helsing theme and the Comic Code Ligatures
 font. The panel takes its colours from whichever Omarchy theme is active.
