@@ -894,7 +894,7 @@ Panel {
           wrapMode: Text.Wrap
           textFormat: Text.PlainText
           text: root.engineChecked && !root.engineFound
-            ? "The engine is not built. Run `zig build --release` in the plugin's engine/ folder (see README)."
+            ? "The calculator program bin/ee-calc is missing. Reinstall the plugin, or build it from source (see the README on GitHub)."
             : root.errorText
           color: root.bad
           font.family: root.fontFamily
