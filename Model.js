@@ -5,6 +5,19 @@
 var SERIES = ["E3", "E6", "E12", "E24", "E48", "E96"]
 var TABS = ["E-series", "Divider"]
 var DIVIDER_MODES = ["Analyse", "Find values"]
+// value is what the engine takes; label is what the chip shows.
+var PACKAGES = [
+  { value: "0402", label: "0402" },
+  { value: "0603", label: "0603" },
+  { value: "0805", label: "0805" },
+  { value: "1206", label: "1206" },
+  { value: "tht-quarter", label: "\u00BCW", tooltip: "Through hole, 1/4 W metal film" },
+  { value: "tht-half", label: "\u00BDW", tooltip: "Through hole, 1/2 W metal film" }
+]
+var TOLERANCES = [
+  { value: "1", label: "1 %" },
+  { value: "5", label: "5 %" }
+]
 
 // Local path of a file bundled with the plugin. The shell hands entry points
 // percent-encoded file URLs, so a plain "file://" strip breaks on spaces.
@@ -51,4 +64,9 @@ function themeColor(toml, key) {
   var re = new RegExp("^\\s*" + key + "\\s*=\\s*\"(#[0-9A-Fa-f]{6})\"", "m")
   var m = re.exec(String(toml || ""))
   return m ? m[1] : ""
+}
+
+// True when the engine's power check says a part is past its rating.
+function overloaded(load) {
+  return !!load && load.level === "over"
 }

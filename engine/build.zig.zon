@@ -1,6 +1,6 @@
 .{
     .name = .ee_calc,
-    .version = "0.1.0",
+    .version = "0.2.0",
     .fingerprint = 0xdbed977cb5f174f6,
     .minimum_zig_version = "0.16.0",
     .paths = .{ "build.zig", "build.zig.zon", "src" },

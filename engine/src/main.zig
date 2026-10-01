@@ -6,6 +6,9 @@
 //!   ee-calc divider --vin <V> --r1 <R> --r2 <R> [--rl <R>]
 //!   ee-calc divider-solve --vin <V> --vout <V> [--series E24]
 //!                         [--rmin 10k] [--rmax 1M] [--rl <R>] [--count 5]
+//!   ee-calc parts <value> [--package 0603] [--tolerance 1]
+//!   (eseries, divider and divider-solve also take --package and
+//!    --tolerance, and then add part numbers and power checks)
 //!   ee-calc parse <text>
 //!   ee-calc version
 
@@ -14,8 +17,9 @@ const Io = std.Io;
 const units = @import("units.zig");
 const eseries = @import("eseries.zig");
 const divider = @import("divider.zig");
+const parts = @import("parts.zig");
 
-const version = "0.1.0";
+const version = "0.2.0";
 // Greek capital omega rather than U+2126 OHM SIGN: far more fonts carry it.
 const ohm = "\u{03A9}";
 
@@ -23,6 +27,8 @@ const usage_text =
     \\ee-calc eseries <value> [--series E24]
     \\ee-calc divider --vin <V> --r1 <R> --r2 <R> [--rl <R>]
     \\ee-calc divider-solve --vin <V> --vout <V> [--series E24] [--rmin 10k] [--rmax 1M] [--rl <R>] [--count 5]
+    \\ee-calc parts <value> [--package 0603|0402|0805|1206|tht-quarter|tht-half] [--tolerance 1|5]
+    \\  eseries, divider and divider-solve also accept --package and --tolerance
     \\ee-calc parse <text>
     \\ee-calc version
 ;
@@ -68,6 +74,8 @@ fn run(arena: std.mem.Allocator, args: []const [:0]const u8, out: *Io.Writer, me
         try out.writeAll("{\"ok\":true,\"value\":");
         try writeNumber(out, v);
         try out.writeAll("}\n");
+    } else if (std.mem.eql(u8, cmd, "parts")) {
+        try cmdParts(rest, out, message);
     } else if (std.mem.eql(u8, cmd, "eseries")) {
         try cmdEseries(rest, out, message);
     } else if (std.mem.eql(u8, cmd, "divider")) {
@@ -142,10 +150,44 @@ fn seriesOption(o: *const Options, message: *[]const u8) Failure!eseries.Series 
     return eseries.Series.parse(text) orelse usage(message, "series must be E3, E6, E12, E24, E48 or E96");
 }
 
+/// Package and tolerance for part numbers and power checks. Absent when
+/// neither option is given, so older callers get the output they expect.
+const Selection = struct { package: parts.Package, tolerance: parts.Tolerance };
+
+fn selectionOption(o: *const Options, message: *[]const u8) Failure!?Selection {
+    const ptext = o.get("package");
+    const ttext = o.get("tolerance");
+    if (ptext == null and ttext == null) return null;
+    return .{
+        .package = if (ptext) |t| parts.Package.parse(t) orelse
+            return usage(message, "package must be 0402, 0603, 0805, 1206, tht-quarter or tht-half")
+        else
+            .p0603,
+        .tolerance = if (ttext) |t| parts.Tolerance.parse(t) orelse
+            return usage(message, "tolerance must be 1 or 5")
+        else
+            .one,
+    };
+}
+
 // ---- Commands ------------------------------------------------------------
 
+fn cmdParts(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "package", "tolerance" }, message);
+    const text = o.positional orelse return usage(message, "enter a value");
+    const value = units.parse(text) catch return usage(message, "not a number");
+    if (!(value > 0)) return usage(message, "value must be above zero");
+    const sel = (try selectionOption(&o, message)) orelse Selection{ .package = .p0603, .tolerance = .one };
+    try out.writeAll("{\"ok\":true");
+    try writeSelection(out, sel);
+    try out.writeAll(",\"parts\":");
+    try writeParts(out, value, sel);
+    try out.writeAll("}\n");
+}
+
 fn cmdEseries(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
-    const o = try parseOptions(rest, &.{"series"}, message);
+    const o = try parseOptions(rest, &.{ "series", "package", "tolerance" }, message);
+    const sel = try selectionOption(&o, message);
     const text = o.positional orelse return usage(message, "enter a value");
     const target = units.parse(text) catch return usage(message, "not a number");
     if (!(target > 0)) return usage(message, "value must be above zero");
@@ -186,14 +228,28 @@ fn cmdEseries(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8)
             try writeQuantity(out, c.result, 4, ohm);
             try out.writeAll(",\"errorPct\":");
             try writeNumber(out, c.error_pct);
+            if (sel) |s| {
+                try out.writeAll(",\"aParts\":");
+                try writeParts(out, c.a, s);
+                try out.writeAll(",\"bParts\":");
+                try writeParts(out, c.b, s);
+            }
             try out.writeAll("}");
         } else try out.writeAll("null");
     }
-    try out.writeAll("}}\n");
+    try out.writeAll("}");
+    if (sel) |s| {
+        // Part numbers for the nearest value in the chosen series.
+        try writeSelection(out, s);
+        try out.writeAll(",\"parts\":");
+        try writeParts(out, eseries.nearest(chosen, target).nearest, s);
+    }
+    try out.writeAll("}\n");
 }
 
 fn cmdDivider(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
-    const o = try parseOptions(rest, &.{ "vin", "r1", "r2", "rl" }, message);
+    const o = try parseOptions(rest, &.{ "vin", "r1", "r2", "rl", "package", "tolerance" }, message);
+    const sel = try selectionOption(&o, message);
     if (o.positional != null) return usage(message, "unexpected argument");
     const vin = try requirePositive(try number(&o, "vin", message, "Vin is not a number"), message, "enter Vin", "Vin must be above zero");
     const r1 = try requirePositive(try number(&o, "r1", message, "R1 is not a number"), message, "enter R1", "R1 must be above zero");
@@ -220,11 +276,24 @@ fn cmdDivider(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8)
     try writeQuantity(out, a.load_current, 3, "A");
     try out.writeAll(",\"sourceResistance\":");
     try writeQuantity(out, a.source_resistance, 3, ohm);
-    try out.print(",\"loaded\":{}}}\n", .{rl != null});
+    try out.print(",\"loaded\":{}", .{rl != null});
+    if (sel) |s| {
+        try writeSelection(out, s);
+        try out.writeAll(",\"loadR1\":");
+        try writeLoad(out, a.p_r1, s.package);
+        try out.writeAll(",\"loadR2\":");
+        try writeLoad(out, a.p_r2, s.package);
+        try out.writeAll(",\"partsR1\":");
+        try writeParts(out, r1, s);
+        try out.writeAll(",\"partsR2\":");
+        try writeParts(out, r2, s);
+    }
+    try out.writeAll("}\n");
 }
 
 fn cmdSolve(arena: std.mem.Allocator, rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
-    const o = try parseOptions(rest, &.{ "vin", "vout", "series", "rmin", "rmax", "rl", "count" }, message);
+    const o = try parseOptions(rest, &.{ "vin", "vout", "series", "rmin", "rmax", "rl", "count", "package", "tolerance" }, message);
+    const sel = try selectionOption(&o, message);
     if (o.positional != null) return usage(message, "unexpected argument");
     const vin = try requirePositive(try number(&o, "vin", message, "Vin is not a number"), message, "enter Vin", "Vin must be above zero");
     const vout = try requirePositive(try number(&o, "vout", message, "Vout is not a number"), message, "enter the target Vout", "Vout must be above zero");
@@ -268,12 +337,68 @@ fn cmdSolve(arena: std.mem.Allocator, rest: []const [:0]const u8, out: *Io.Write
         try writeQuantity(out, c.total, 3, ohm);
         try out.writeAll(",\"current\":");
         try writeQuantity(out, c.current, 3, "A");
+        if (sel) |s| {
+            try out.writeAll(",\"loadR1\":");
+            try writeLoad(out, c.current * c.current * c.r1, s.package);
+            try out.writeAll(",\"loadR2\":");
+            try writeLoad(out, c.vout * c.vout / c.r2, s.package);
+        }
         try out.writeAll("}");
     }
-    try out.writeAll("]}\n");
+    try out.writeAll("]");
+    if (sel) |s| {
+        // Part numbers for the best pair only; the list is a shortlist and
+        // the panel shows numbers for the one it recommends.
+        try writeSelection(out, s);
+        try out.writeAll(",\"partsR1\":");
+        try writeParts(out, got[0].r1, s);
+        try out.writeAll(",\"partsR2\":");
+        try writeParts(out, got[0].r2, s);
+    }
+    try out.writeAll("}\n");
 }
 
 // ---- JSON ----------------------------------------------------------------
+
+fn writeSelection(out: *Io.Writer, s: Selection) Io.Writer.Error!void {
+    try out.print(",\"package\":\"{s}\",\"tolerance\":\"{s}\",\"rating\":", .{ s.package.name(), s.tolerance.name() });
+    try writeQuantity(out, s.package.rating(), 3, "W");
+}
+
+/// {"value": .., "note": "..", "list": [{"maker","family","mpn","power","nrfnd"}]}
+fn writeParts(out: *Io.Writer, value: f64, s: Selection) Io.Writer.Error!void {
+    var storage: [parts.max_parts][40]u8 = undefined;
+    var list: [parts.max_parts]parts.Part = undefined;
+    const r = parts.lookup(&storage, &list, value, s.package, s.tolerance);
+    try out.writeAll("{\"value\":");
+    try writeQuantity(out, value, 3, ohm);
+    try out.writeAll(",\"note\":");
+    try writeString(out, r.note);
+    try out.writeAll(",\"list\":[");
+    for (r.parts, 0..) |p, i| {
+        if (i > 0) try out.writeAll(",");
+        try out.writeAll("{\"maker\":");
+        try writeString(out, p.maker);
+        try out.writeAll(",\"family\":");
+        try writeString(out, p.family);
+        try out.writeAll(",\"mpn\":");
+        try writeString(out, p.mpn);
+        try out.writeAll(",\"power\":");
+        try writeQuantity(out, p.power, 3, "W");
+        try out.print(",\"nrfnd\":{}}}", .{p.nrfnd});
+    }
+    try out.writeAll("]}");
+}
+
+/// {"power": .., "pct": 37.5, "level": "ok" | "high" | "over"}
+fn writeLoad(out: *Io.Writer, power: f64, package: parts.Package) Io.Writer.Error!void {
+    const rating = package.rating();
+    try out.writeAll("{\"power\":");
+    try writeQuantity(out, power, 3, "W");
+    try out.writeAll(",\"pct\":");
+    try writeNumber(out, power / rating * 100);
+    try out.print(",\"level\":\"{s}\"}}", .{@tagName(parts.loadLevel(power, rating))});
+}
 
 /// {"value": 4700, "text": "4.7 kΩ"}
 fn writeQuantity(out: *Io.Writer, value: f64, sig: u8, unit: []const u8) Io.Writer.Error!void {
@@ -308,4 +433,5 @@ test {
     _ = units;
     _ = eseries;
     _ = divider;
+    _ = parts;
 }
