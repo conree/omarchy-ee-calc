@@ -1,2 +1,5 @@
 engine/.zig-cache/
 engine/zig-out/
+# The manual PDF embeds Visby CF; its licence requires embedded fonts to be
+# non-extractable, so the PDF is kept local (for printing) and not published.
+docs/EE_Calc_User_Manual.pdf
