@@ -185,47 +185,6 @@ From 0.2.0 on, each version is also published on the
 the program and its SHA-256 checksum. The **Releases** link on the right of
 the GitHub page goes there.
 
-## Build from source (optional)
-
-You do not need this to use the plugin. It is for checking that the
-ready-built program matches the source, or for changing it.
-
-1. Install Zig 0.16 (the engine uses language features that arrived in
-   0.16):
-
-   ```
-   sudo pacman -S zig
-   zig version
-   ```
-
-   The second command should print `0.16.0`.
-
-2. Build, keeping Zig's cache outside the plugins folder (Omarchy reloads
-   plugins whenever a file changes there):
-
-   ```
-   cd ~/.config/omarchy/plugins/conree.ee-calc/engine
-   zig build --release --cache-dir ~/.cache/ee-calc
-   ```
-
-3. Compare with the published checksum:
-
-   ```
-   cd ../bin
-   sha256sum -c ee-calc.sha256
-   ```
-
-   `ee-calc: OK` means your build is byte-for-byte identical to the one
-   shipped. The build is reproducible, and it targets the baseline x86-64
-   instruction set, so it does not depend on newer processor features
-   such as AVX.
-
-To run the tests, in `engine/`:
-
-```
-zig build test --cache-dir ~/.cache/ee-calc
-```
-
 ## Use
 
 Click the calculator icon in the bar. Each field updates the result as
