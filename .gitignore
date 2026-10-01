@@ -1,0 +1,3 @@
+engine/.zig-cache/
+engine/zig-out/
+bin/
