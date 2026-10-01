@@ -22,6 +22,22 @@ An electronics bench calculator for the Omarchy Quattro bar.
   a share of the chosen package's rating: green up to half, yellow up to
   the rating, red beyond it.
 
+## What's new in 0.2.0
+
+Version 0.1.0, the first release of EE Calc, had a flaw in its
+installation: users had to leave the Omarchy Plugin Marketplace, follow
+instructions on GitHub that were unclear, and install the Zig compiler to
+build the plugin themselves.
+
+Version 0.2.0 replaces that with a ready-built program included in the
+plugin. Installing is now two commands, with no Zig and no build step (see
+[Install](#install)).
+
+To make up for the inconvenience, 0.2.0 also adds a package selector (0402
+to 1206, plus through-hole), a 1 % / 5 % tolerance choice, manufacturer
+part numbers for Yageo, Vishay and Panasonic, and a power check that shows
+how hard each resistor is working against its package rating.
+
 ## Screenshots
 
 **E-series:** the nearest value in every series, with the error
@@ -167,12 +183,12 @@ ready-built program matches the source, or for changing it.
 3. Compare with the published checksum:
 
    ```
-   cd ..
-   sha256sum -c bin/ee-calc.sha256
+   cd ../bin
+   sha256sum -c ee-calc.sha256
    ```
 
-   `bin/ee-calc: OK` means your build is byte-for-byte identical to the
-   one shipped. The build is reproducible and targets a baseline x86-64
+   `ee-calc: OK` means your build is byte-for-byte identical to the one
+   shipped. The build is reproducible and targets a baseline x86-64
    processor, so it runs on any 64-bit Intel or AMD machine.
 
 Run the tests with `zig build test` in `engine/`.
