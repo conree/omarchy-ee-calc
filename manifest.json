@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "conree.ee-calc",
   "name": "EE Calc",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "conree",
   "license": "MIT",
   "description": "Electronics bench calculator in the bar: nearest E-series value with two-resistor combinations, and voltage divider analysis and design from standard values.",
@@ -30,7 +30,9 @@
     "defaults": {
       "series": "E24",
       "tab": "E-series",
-      "font": "Comic Code Ligatures"
+      "font": "Comic Code Ligatures",
+      "packageCode": "0603",
+      "tolerance": "1"
     },
     "schema": [
       {
@@ -58,6 +60,32 @@
         ],
         "defaultValue": "E-series",
         "description": "The calculator the panel opens on. Updated to the last one you used."
+      },
+      {
+        "key": "packageCode",
+        "type": "enum",
+        "label": "Package",
+        "options": [
+          "0402",
+          "0603",
+          "0805",
+          "1206",
+          "tht-quarter",
+          "tht-half"
+        ],
+        "defaultValue": "0603",
+        "description": "Resistor package for part numbers and the power check."
+      },
+      {
+        "key": "tolerance",
+        "type": "enum",
+        "label": "Tolerance",
+        "options": [
+          "1",
+          "5"
+        ],
+        "defaultValue": "1",
+        "description": "Tolerance in percent for part numbers. 5 % parts come in E24 values only."
       },
       {
         "key": "font",

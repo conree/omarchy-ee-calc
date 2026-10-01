@@ -11,6 +11,8 @@ BarWidget {
   readonly property string series: setting("series", "E24")
   readonly property string tab: setting("tab", "E-series")
   readonly property string font: setting("font", "Comic Code Ligatures")
+  readonly property string packageCode: setting("packageCode", "0603")
+  readonly property string tolerance: setting("tolerance", "1")
 
   // Choices made in the panel are remembered the way the built-in clock
   // remembers its format: applied locally, then written to shell.json.

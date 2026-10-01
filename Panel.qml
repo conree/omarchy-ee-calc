@@ -53,6 +53,8 @@ Panel {
 
   // ---- Choices remembered in shell.json.
   readonly property string series: hostWidget ? hostWidget.series : "E24"
+  readonly property string packageCode: hostWidget ? hostWidget.packageCode : "0603"
+  readonly property string tolerance: hostWidget ? hostWidget.tolerance : "1"
   // The last calculator used. Read from settings once, when the widget
   // first hands itself over, then owned here so clicks do not fight a binding.
   property string tab: "E-series"
@@ -98,23 +100,27 @@ Panel {
     debounce.restart()
   }
 
+  function partArgs() {
+    return ["--package", packageCode, "--tolerance", tolerance]
+  }
+
   function buildArgs() {
     if (tab === "E-series") {
       if (valueField.text.trim() === "") return null
-      return ["eseries", valueField.text, "--series", series]
+      return ["eseries", valueField.text, "--series", series].concat(partArgs())
     }
     if (dividerMode === "Analyse") {
       if (vinField.text.trim() === "" || r1Field.text.trim() === "" || r2Field.text.trim() === "") return null
       var a = ["divider", "--vin", vinField.text, "--r1", r1Field.text, "--r2", r2Field.text]
       if (rlField.text.trim() !== "") a.push("--rl", rlField.text)
-      return a
+      return a.concat(partArgs())
     }
     if (solveVinField.text.trim() === "" || voutField.text.trim() === "") return null
     var s = ["divider-solve", "--vin", solveVinField.text, "--vout", voutField.text, "--series", series]
     if (rminField.text.trim() !== "") s.push("--rmin", rminField.text)
     if (rmaxField.text.trim() !== "") s.push("--rmax", rmaxField.text)
     if (solveRlField.text.trim() !== "") s.push("--rl", solveRlField.text)
-    return s
+    return s.concat(partArgs())
   }
 
   function launch() {
@@ -276,6 +282,43 @@ Panel {
     Qt.callLater(request)
   }
 
+  function setPackage(value) {
+    remember("packageCode", value)
+    Qt.callLater(request)
+  }
+
+  function setTolerance(value) {
+    remember("tolerance", value)
+    Qt.callLater(request)
+  }
+
+  // ---- Copying a part number. wl-copy ships with Omarchy; the number is
+  // passed as one argv element, never through a shell.
+  property string copiedMpn: ""
+
+  function copyMpn(mpn) {
+    if (!mpn || copier.running) return
+    copier.command = ["wl-copy", "--", mpn]
+    copier.running = true
+    copiedMpn = mpn
+    copiedReset.restart()
+  }
+
+  Process { id: copier; running: false }
+  Timer { id: copiedReset; interval: 1500; onTriggered: root.copiedMpn = "" }
+
+  function loadColor(level) {
+    if (level === "ok") return root.cGreen
+    if (level === "high") return root.cYellow
+    if (level === "over") return root.cRed
+    return root.fg
+  }
+
+  function loadText(load) {
+    if (!load || !load.power) return ""
+    return Model.text(load.power) + "  " + Math.round(load.pct) + " %"
+  }
+
   // Keys typed into a field belong to the field. Esc closes the panel in one
   // press, and Enter runs the engine at once instead of waiting out the
   // debounce.
@@ -393,6 +436,101 @@ Panel {
         font.family: root.fontFamily
         font.pixelSize: reading.strong ? Style.font.subtitle : Style.font.body
         font.weight: reading.strong ? Font.Bold : Font.Medium
+      }
+    }
+  }
+
+  // Part numbers for one value, one row per maker. Clicking a number
+  // copies it; a size Panasonic marks "not for new designs" says so.
+  component PartList: Column {
+    id: partList
+    property string title: ""
+    property var block: null
+    readonly property var list: block && block.list ? block.list : []
+    width: parent ? parent.width : 0
+    spacing: Style.space(2)
+    visible: block !== null
+
+    Text {
+      text: partList.title + (partList.block && partList.block.value ? "  " + Model.text(partList.block.value) : "")
+      textFormat: Text.PlainText
+      color: root.cPink
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      font.letterSpacing: 1
+    }
+
+    Text {
+      visible: partList.list.length === 0
+      text: partList.block && partList.block.note ? partList.block.note : ""
+      textFormat: Text.PlainText
+      color: root.cYellow
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.body
+    }
+
+    Repeater {
+      model: partList.list
+
+      Item {
+        id: partRow
+        required property var modelData
+        readonly property bool copied: root.copiedMpn === modelData.mpn
+        width: partList.width
+        height: Style.space(22)
+
+        Text {
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: partRow.modelData.maker
+          textFormat: Text.PlainText
+          color: root.cCyan
+          opacity: 0.85
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.body
+        }
+
+        Row {
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.space(8)
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: partRow.modelData.nrfnd === true
+            text: "not for new designs"
+            textFormat: Text.PlainText
+            color: root.cRed
+            opacity: 0.85
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+          }
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: partRow.copied ? "copied" : Model.text(partRow.modelData.power)
+            textFormat: Text.PlainText
+            color: partRow.copied ? root.cGreen : root.fg
+            opacity: partRow.copied ? 1.0 : 0.55
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+          }
+
+          Text {
+            id: mpnText
+            anchors.verticalCenter: parent.verticalCenter
+            text: partRow.modelData.mpn
+            textFormat: Text.PlainText
+            color: root.cYellow
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            font.weight: Font.Medium
+            font.underline: mpnHover.hovered
+
+            HoverHandler { id: mpnHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: root.copyMpn(partRow.modelData.mpn) }
+          }
+        }
       }
     }
   }
@@ -691,6 +829,62 @@ Panel {
           }
         }
 
+        // ---- Package and tolerance: drive the part numbers and the power
+        //      check on every tab.
+        Item {
+          width: parent.width
+          height: packageGroup.implicitHeight
+
+          Text {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Package"
+            textFormat: Text.PlainText
+            color: root.cCyan
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+          }
+
+          ButtonGroup {
+            id: packageGroup
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            options: Model.PACKAGES
+            value: root.packageCode
+            focusable: false
+            foreground: root.cGreen
+            fontFamily: root.fontFamily
+            onChanged: function(value) { root.setPackage(value) }
+          }
+        }
+
+        Item {
+          width: parent.width
+          height: toleranceGroup.implicitHeight
+
+          Text {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Tolerance"
+            textFormat: Text.PlainText
+            color: root.cCyan
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+          }
+
+          ButtonGroup {
+            id: toleranceGroup
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            options: Model.TOLERANCES
+            value: root.tolerance
+            focusable: false
+            foreground: root.cYellow
+            fontFamily: root.fontFamily
+            onChanged: function(value) { root.setTolerance(value) }
+          }
+        }
+
         PanelSeparator { width: parent.width }
 
         // ---- Status: missing engine, or the engine's own error message.
@@ -830,12 +1024,20 @@ Panel {
           }
 
           Reading {
+            id: parallelReading
             readonly property var pair: root.result && root.result.pairs ? root.result.pairs.parallel : null
             label: "In parallel"
             value: pair ? Model.text(pair.a) + " || " + Model.text(pair.b) : "—"
             valueColor: root.cPurple
             detail: pair ? Model.pct(pair.errorPct) : ""
             detailColor: pair ? root.levelColor(pair.errorPct) : root.fg
+          }
+
+          Item { width: 1; height: Style.space(6) }
+
+          PartList {
+            title: root.series + " PART  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            block: root.result && root.result.parts ? root.result.parts : null
           }
         }
 
@@ -868,9 +1070,18 @@ Panel {
             valueColor: root.cCyan
           }
           Reading {
-            label: "Power R1 / R2"
-            value: root.result ? Model.text(root.result.pR1) + "  /  " + Model.text(root.result.pR2) : ""
-            valueColor: root.cYellow
+            label: "Power R1"
+            value: root.result ? root.loadText(root.result.loadR1) : ""
+            valueColor: root.result && root.result.loadR1 ? root.loadColor(root.result.loadR1.level) : root.cYellow
+            detail: root.result && root.result.rating ? "of " + Model.text(root.result.rating) : ""
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "Power R2"
+            value: root.result ? root.loadText(root.result.loadR2) : ""
+            valueColor: root.result && root.result.loadR2 ? root.loadColor(root.result.loadR2.level) : root.cYellow
+            detail: root.result && root.result.rating ? "of " + Model.text(root.result.rating) : ""
+            detailColor: root.cPurple
           }
           Reading {
             visible: root.result !== null && root.result.loaded === true
@@ -884,6 +1095,17 @@ Panel {
             valueColor: root.cPink
             detail: "R1 || R2"
             detailColor: root.cPurple
+          }
+
+          Item { width: 1; height: Style.space(6) }
+
+          PartList {
+            title: "R1  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            block: root.result && root.result.partsR1 ? root.result.partsR1 : null
+          }
+          PartList {
+            title: "R2  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            block: root.result && root.result.partsR2 ? root.result.partsR2 : null
           }
         }
 
@@ -933,8 +1155,10 @@ Panel {
 
               Repeater {
                 model: [
-                  { text: Model.text(candidateRow.modelData.r1), x: 0, tint: root.cPink },
-                  { text: Model.text(candidateRow.modelData.r2), x: 0.2, tint: root.cPurple },
+                  { text: Model.text(candidateRow.modelData.r1), x: 0,
+                    tint: Model.overloaded(candidateRow.modelData.loadR1) ? root.cRed : root.cPink },
+                  { text: Model.text(candidateRow.modelData.r2), x: 0.2,
+                    tint: Model.overloaded(candidateRow.modelData.loadR2) ? root.cRed : root.cPurple },
                   { text: Model.text(candidateRow.modelData.vout), x: 0.4, tint: root.cGreen },
                   { text: Model.pct(candidateRow.modelData.errorPct), x: 0.6, err: true },
                   { text: Model.text(candidateRow.modelData.current), x: 0.8, tint: root.cCyan }
@@ -954,6 +1178,17 @@ Panel {
                 }
               }
             }
+          }
+
+          Item { width: 1; height: Style.space(6) }
+
+          PartList {
+            title: "BEST R1  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            block: root.result && root.result.partsR1 ? root.result.partsR1 : null
+          }
+          PartList {
+            title: "BEST R2  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            block: root.result && root.result.partsR2 ? root.result.partsR2 : null
           }
 
           Text {
