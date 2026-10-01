@@ -19,6 +19,13 @@ Panel {
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
 
+  // One step larger than the shell's own sizes (12 -> 13 px body text).
+  // Every font size and spacing goes through these two helpers, so the
+  // whole panel scales together and keeps its layout.
+  readonly property real textScale: 13 / 12
+  function fs(px) { return Math.round(px * textScale) }
+  function sp(v) { return Style.space(v) * textScale }
+
   readonly property color fg: bar ? bar.foreground : Color.foreground
   readonly property string shellFont: bar ? bar.fontFamily : Style.font.family
   // The panel's own font when it is installed, else the shell's, so a
@@ -307,6 +314,10 @@ Panel {
   Process { id: copier; running: false }
   Timer { id: copiedReset; interval: 1500; onTriggered: root.copiedMpn = "" }
 
+  // 5 % parts exist only in E24 values, so an E48/E96 result at 5 % has no
+  // part. Say how to get one rather than only that there is none.
+  readonly property bool seriesHint: tolerance === "5" && (series === "E48" || series === "E96")
+
   function loadColor(level) {
     if (level === "ok") return root.cGreen
     if (level === "high") return root.cYellow
@@ -314,9 +325,9 @@ Panel {
     return root.fg
   }
 
-  function loadText(load) {
+  function loadText(load, rating) {
     if (!load || !load.power) return ""
-    return Model.text(load.power) + "  " + Math.round(load.pct) + " %"
+    return Model.text(load.power) + " of " + Model.text(rating) + "  (" + Math.round(load.pct) + " %)"
   }
 
   // Keys typed into a field belong to the field. Esc closes the panel in one
@@ -349,27 +360,28 @@ Panel {
     property alias input: input
     property string hint: ""
     width: parent ? parent.width : 0
-    spacing: Style.space(10)
+    spacing: root.sp(10)
 
     function forceActiveFocus() { input.forceActiveFocus() }
     function selectAll() { input.selectAll() }
 
     Text {
       id: fieldLabel
-      width: Style.space(96)
+      width: root.sp(96)
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       color: root.cCyan
       font.family: root.fontFamily
-      font.pixelSize: Style.font.body
+      font.pixelSize: root.fs(Style.font.body)
     }
 
     TextField {
       id: input
-      width: Style.space(110)
+      width: root.sp(110)
       anchors.verticalCenter: parent.verticalCenter
       foreground: root.cYellow
       font.family: root.fontFamily
+      font.pixelSize: root.fs(Style.font.body)
       font.weight: Font.Medium
       selectByMouse: true
       onTextChanged: root.request()
@@ -385,7 +397,7 @@ Panel {
       color: root.cPink
       opacity: 0.8
       font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: root.fs(Style.font.bodySmall)
     }
   }
 
@@ -399,7 +411,7 @@ Panel {
     property color detailColor: root.fg
     property bool strong: false
     width: parent ? parent.width : 0
-    height: Style.space(24)
+    height: root.sp(24)
 
     Text {
       anchors.left: parent.left
@@ -409,13 +421,13 @@ Panel {
       color: root.cCyan
       opacity: 0.85
       font.family: root.fontFamily
-      font.pixelSize: Style.font.body
+      font.pixelSize: root.fs(Style.font.body)
     }
 
     Row {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.space(8)
+      spacing: root.sp(8)
 
       Text {
         anchors.verticalCenter: parent.verticalCenter
@@ -425,7 +437,7 @@ Panel {
         color: reading.detailColor
         opacity: 0.85
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: root.fs(Style.font.bodySmall)
       }
 
       Text {
@@ -434,7 +446,7 @@ Panel {
         textFormat: Text.PlainText
         color: reading.valueColor
         font.family: root.fontFamily
-        font.pixelSize: reading.strong ? Style.font.subtitle : Style.font.body
+        font.pixelSize: reading.strong ? root.fs(Style.font.subtitle) : root.fs(Style.font.body)
         font.weight: reading.strong ? Font.Bold : Font.Medium
       }
     }
@@ -448,25 +460,50 @@ Panel {
     property var block: null
     readonly property var list: block && block.list ? block.list : []
     width: parent ? parent.width : 0
-    spacing: Style.space(2)
+    spacing: root.sp(2)
+    topPadding: root.sp(10)
     visible: block !== null
+    // When the panel knows a better next step than the engine's note.
+    property bool seriesHint: false
 
     Text {
       text: partList.title + (partList.block && partList.block.value ? "  " + Model.text(partList.block.value) : "")
       textFormat: Text.PlainText
       color: root.cPink
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: root.fs(Style.font.caption)
       font.letterSpacing: 1
+      bottomPadding: root.sp(6)
     }
 
-    Text {
+    // No part: laid out like a maker row, label left and reason right.
+    Item {
       visible: partList.list.length === 0
-      text: partList.block && partList.block.note ? partList.block.note : ""
-      textFormat: Text.PlainText
-      color: root.cYellow
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.body
+      width: partList.width
+      height: root.sp(22)
+
+      Text {
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: partList.seriesHint ? "No 5 % part" : "No part"
+        textFormat: Text.PlainText
+        color: root.cCyan
+        opacity: 0.85
+        font.family: root.fontFamily
+        font.pixelSize: root.fs(Style.font.body)
+      }
+
+      Text {
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        text: partList.seriesHint ? "choose E24"
+          : (partList.block && partList.block.note ? partList.block.note : "")
+        textFormat: Text.PlainText
+        color: root.cYellow
+        font.family: root.fontFamily
+        font.pixelSize: root.fs(Style.font.body)
+        font.weight: Font.Medium
+      }
     }
 
     Repeater {
@@ -477,7 +514,7 @@ Panel {
         required property var modelData
         readonly property bool copied: root.copiedMpn === modelData.mpn
         width: partList.width
-        height: Style.space(22)
+        height: root.sp(22)
 
         Text {
           anchors.left: parent.left
@@ -487,13 +524,13 @@ Panel {
           color: root.cCyan
           opacity: 0.85
           font.family: root.fontFamily
-          font.pixelSize: Style.font.body
+          font.pixelSize: root.fs(Style.font.body)
         }
 
         Row {
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(8)
+          spacing: root.sp(8)
 
           Text {
             anchors.verticalCenter: parent.verticalCenter
@@ -503,7 +540,7 @@ Panel {
             color: root.cRed
             opacity: 0.85
             font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: root.fs(Style.font.bodySmall)
           }
 
           Text {
@@ -513,7 +550,7 @@ Panel {
             color: partRow.copied ? root.cGreen : root.fg
             opacity: partRow.copied ? 1.0 : 0.55
             font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: root.fs(Style.font.bodySmall)
           }
 
           Text {
@@ -523,7 +560,7 @@ Panel {
             textFormat: Text.PlainText
             color: root.cYellow
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: root.fs(Style.font.body)
             font.weight: Font.Medium
             font.underline: mpnHover.hovered
 
@@ -543,7 +580,7 @@ Panel {
     open: root.opened
     centerOnBar: true
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(500))
+    contentWidth: panel.fittedContentWidth(root.sp(500))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
   PanelKeyCatcher {
@@ -573,11 +610,11 @@ Panel {
 
       Column {
         id: content
-        x: Style.space(16)
-        width: scroll.width - Style.space(32)
-        spacing: Style.space(10)
+        x: root.sp(16)
+        width: scroll.width - root.sp(32)
+        spacing: root.sp(10)
 
-        Item { width: 1; height: Style.space(4) }
+        Item { width: 1; height: root.sp(4) }
 
         // ---- Header.
         Item {
@@ -587,14 +624,14 @@ Panel {
           Row {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(6)
+            spacing: root.sp(6)
 
             Text {
               text: "EE"
               textFormat: Text.PlainText
               color: root.cPink
               font.family: root.fontFamily
-              font.pixelSize: Style.font.heading
+              font.pixelSize: root.fs(Style.font.heading)
               font.weight: Font.Bold
             }
             Text {
@@ -603,7 +640,7 @@ Panel {
               textFormat: Text.PlainText
               color: root.cPurple
               font.family: root.fontFamily
-              font.pixelSize: Style.font.heading
+              font.pixelSize: root.fs(Style.font.heading)
               font.weight: Font.Bold
             }
           }
@@ -615,6 +652,7 @@ Panel {
             options: Model.TABS
             value: root.tab
             focusable: false
+            fontSize: root.fs(Style.font.body)
             foreground: root.cPurple
             fontFamily: root.fontFamily
             onChanged: function(value) { root.setTab(value) }
@@ -626,7 +664,7 @@ Panel {
         // ---- E-series.
         Column {
           width: parent.width
-          spacing: Style.space(8)
+          spacing: root.sp(8)
           visible: root.tab === "E-series"
 
           Field {
@@ -640,13 +678,14 @@ Panel {
         // ---- Divider.
         Column {
           width: parent.width
-          spacing: Style.space(8)
+          spacing: root.sp(8)
           visible: root.tab === "Divider"
 
           ButtonGroup {
             options: Model.DIVIDER_MODES
             value: root.dividerMode
             focusable: false
+            fontSize: root.fs(Style.font.body)
             foreground: root.cPink
             fontFamily: root.fontFamily
             onChanged: function(value) { root.setDividerMode(value) }
@@ -654,13 +693,13 @@ Panel {
 
           Item {
             width: parent.width
-            height: Math.max(analyseFields.implicitHeight, Style.space(170))
+            height: Math.max(analyseFields.implicitHeight, root.sp(170))
             visible: root.dividerMode === "Analyse"
 
             Column {
               id: analyseFields
               width: parent.width - schematic.width
-              spacing: Style.space(8)
+              spacing: root.sp(8)
 
               Field { id: vinField; label: "Vin"; text: "12"; hint: "V" }
               Field { id: r1Field; label: "R1 (top)"; text: "10k"; hint: "Ω" }
@@ -675,7 +714,7 @@ Panel {
               id: schematic
               anchors.right: parent.right
               anchors.top: parent.top
-              width: Style.space(215)
+              width: root.sp(215)
               height: parent.height
 
               readonly property var inputs: [
@@ -689,7 +728,7 @@ Panel {
               function resistor(ctx, x, y1, y2) {
                 var lead = (y2 - y1) * 0.22
                 var zig = (y2 - y1 - 2 * lead) / 6
-                var w = Style.space(6)  // matches zigHalf in onPaint
+                var w = root.sp(6)  // matches zigHalf in onPaint
                 ctx.beginPath()
                 ctx.moveTo(x, y1)
                 ctx.lineTo(x, y1 + lead)
@@ -709,77 +748,77 @@ Panel {
               onPaint: {
                 var ctx = getContext("2d")
                 ctx.reset()
-                ctx.lineWidth = Math.max(1.5, Style.space(1.6))
+                ctx.lineWidth = Math.max(1.5, root.sp(1.6))
                 ctx.lineCap = "round"
                 ctx.lineJoin = "round"
                 ctx.textBaseline = "middle"
 
-                var px = Style.font.bodySmall
+                var px = root.fs(Style.font.bodySmall)
                 // Laid out from the right: the load resistor's outer edge
                 // meets the canvas edge, which is the right edge of the
                 // results below, and the main column sits a fixed step to
                 // its left whether or not a load is drawn. The node voltage
                 // then reads to the left of the junction with room to spare.
-                var zigHalf = Style.space(6)
+                var zigHalf = root.sp(6)
                 var lx = width - zigHalf - ctx.lineWidth
-                var x = lx - Style.space(100)
-                var top = Style.space(10)
+                var x = lx - root.sp(100)
+                var top = root.sp(10)
                 var mid = height * 0.5
-                var gnd = height - Style.space(24)
+                var gnd = height - root.sp(24)
                 var loaded = rlField.text.trim() !== ""
                 var vout = root.result && root.result.vout ? root.result.vout.text : "?"
 
                 // Vin terminal.
                 ctx.strokeStyle = root.cYellow
                 ctx.fillStyle = root.cYellow
-                ctx.beginPath(); ctx.arc(x, top, Style.space(3), 0, 2 * Math.PI); ctx.fill()
-                label(ctx, (vinField.text || "?") + " V", x + Style.space(12), top, root.cYellow, px, 600)
+                ctx.beginPath(); ctx.arc(x, top, root.sp(3), 0, 2 * Math.PI); ctx.fill()
+                label(ctx, (vinField.text || "?") + " V", x + root.sp(12), top, root.cYellow, px, 600)
 
                 // R1.
                 ctx.strokeStyle = root.cPink
-                resistor(ctx, x, top + Style.space(4), mid)
-                label(ctx, "R1 " + (r1Field.text || "?"), x + Style.space(14), (top + mid) / 2, root.cPink, px)
+                resistor(ctx, x, top + root.sp(4), mid)
+                label(ctx, "R1 " + (r1Field.text || "?"), x + root.sp(14), (top + mid) / 2, root.cPink, px)
 
                 // R2.
                 ctx.strokeStyle = root.cPurple
                 resistor(ctx, x, mid, gnd)
-                label(ctx, "R2 " + (r2Field.text || "?"), x + Style.space(14), (mid + gnd) / 2, root.cPurple, px)
+                label(ctx, "R2 " + (r2Field.text || "?"), x + root.sp(14), (mid + gnd) / 2, root.cPurple, px)
 
                 // Load, dashed, to the right of R2. It taps off just below
                 // the Vout node so its wire never runs through the Vout
                 // label, and its value sits under the ground return.
                 if (loaded) {
-                  var tap = mid + Style.space(10)
+                  var tap = mid + root.sp(10)
                   ctx.strokeStyle = root.cCyan
                   ctx.fillStyle = root.cCyan
-                  ctx.setLineDash([Style.space(3), Style.space(3)])
+                  ctx.setLineDash([root.sp(3), root.sp(3)])
                   ctx.beginPath(); ctx.moveTo(x, tap); ctx.lineTo(lx, tap); ctx.stroke()
                   ctx.beginPath(); ctx.moveTo(x, gnd); ctx.lineTo(lx, gnd); ctx.stroke()
                   ctx.setLineDash([])
                   resistor(ctx, lx, tap, gnd)
-                  ctx.beginPath(); ctx.arc(x, tap, Style.space(2.5), 0, 2 * Math.PI); ctx.fill()
+                  ctx.beginPath(); ctx.arc(x, tap, root.sp(2.5), 0, 2 * Math.PI); ctx.fill()
                   ctx.textAlign = "right"
-                  label(ctx, "RL " + rlField.text, width, gnd + Style.space(11), root.cCyan, px)
+                  label(ctx, "RL " + rlField.text, width, gnd + root.sp(11), root.cCyan, px)
                   ctx.textAlign = "start"
                 }
 
                 // Vout node, drawn last so it sits on top of the wires. Its
                 // value reads level with the node, on the side no wire uses.
                 ctx.fillStyle = root.cGreen
-                ctx.beginPath(); ctx.arc(x, mid, Style.space(3.5), 0, 2 * Math.PI); ctx.fill()
+                ctx.beginPath(); ctx.arc(x, mid, root.sp(3.5), 0, 2 * Math.PI); ctx.fill()
                 ctx.textAlign = "right"
-                label(ctx, vout, x - Style.space(10), mid, root.cGreen, Style.font.body, 700)
+                label(ctx, vout, x - root.sp(10), mid, root.cGreen, root.fs(Style.font.body), 700)
                 ctx.textAlign = "start"
 
                 // Ground.
                 ctx.strokeStyle = root.fg
                 ctx.globalAlpha = 0.7
-                var g = Style.space(9)
+                var g = root.sp(9)
                 for (var k = 0; k < 3; k++) {
-                  var hw = g - k * Style.space(3)
+                  var hw = g - k * root.sp(3)
                   ctx.beginPath()
-                  ctx.moveTo(x - hw, gnd + k * Style.space(4))
-                  ctx.lineTo(x + hw, gnd + k * Style.space(4))
+                  ctx.moveTo(x - hw, gnd + k * root.sp(4))
+                  ctx.lineTo(x + hw, gnd + k * root.sp(4))
                   ctx.stroke()
                 }
                 ctx.globalAlpha = 1
@@ -789,7 +828,7 @@ Panel {
 
           Column {
             width: parent.width
-            spacing: Style.space(8)
+            spacing: root.sp(8)
             visible: root.dividerMode === "Find values"
 
             Field { id: solveVinField; label: "Vin"; text: "12"; hint: "V" }
@@ -813,7 +852,7 @@ Panel {
             textFormat: Text.PlainText
             color: root.cCyan
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: root.fs(Style.font.body)
           }
 
           ButtonGroup {
@@ -823,6 +862,7 @@ Panel {
             options: Model.SERIES
             value: root.series
             focusable: false
+            fontSize: root.fs(Style.font.body)
             foreground: root.cCyan
             fontFamily: root.fontFamily
             onChanged: function(value) { root.setSeries(value) }
@@ -842,7 +882,7 @@ Panel {
             textFormat: Text.PlainText
             color: root.cCyan
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: root.fs(Style.font.body)
           }
 
           ButtonGroup {
@@ -852,6 +892,7 @@ Panel {
             options: Model.PACKAGES
             value: root.packageCode
             focusable: false
+            fontSize: root.fs(Style.font.body)
             foreground: root.cGreen
             fontFamily: root.fontFamily
             onChanged: function(value) { root.setPackage(value) }
@@ -869,7 +910,7 @@ Panel {
             textFormat: Text.PlainText
             color: root.cCyan
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: root.fs(Style.font.body)
           }
 
           ButtonGroup {
@@ -879,6 +920,7 @@ Panel {
             options: Model.TOLERANCES
             value: root.tolerance
             focusable: false
+            fontSize: root.fs(Style.font.body)
             foreground: root.cYellow
             fontFamily: root.fontFamily
             onChanged: function(value) { root.setTolerance(value) }
@@ -898,7 +940,7 @@ Panel {
             : root.errorText
           color: root.bad
           font.family: root.fontFamily
-          font.pixelSize: Style.font.body
+          font.pixelSize: root.fs(Style.font.body)
         }
 
         Text {
@@ -912,19 +954,19 @@ Panel {
           color: root.cCyan
           opacity: 0.8
           font.family: root.fontFamily
-          font.pixelSize: Style.font.body
+          font.pixelSize: root.fs(Style.font.body)
         }
 
         // ---- E-series results.
         Column {
           width: parent.width
-          spacing: Style.space(2)
+          spacing: root.sp(2)
           visible: root.tab === "E-series" && root.result !== null && root.result.table !== undefined
 
           // Column heads.
           Item {
             width: parent.width
-            height: Style.space(20)
+            height: root.sp(20)
 
             Repeater {
               model: [
@@ -943,7 +985,7 @@ Panel {
                 color: root.cPink
                 opacity: 0.85
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                font.pixelSize: root.fs(Style.font.caption)
                 font.letterSpacing: 1
               }
             }
@@ -957,7 +999,7 @@ Panel {
               required property var modelData
               readonly property bool chosen: modelData.series === root.series
               width: parent.width
-              height: Style.space(24)
+              height: root.sp(24)
 
               Text {
                 x: 0
@@ -966,7 +1008,7 @@ Panel {
                 textFormat: Text.PlainText
                 color: seriesRow.chosen ? root.cPink : root.cPurple
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.body
+                font.pixelSize: root.fs(Style.font.body)
                 font.weight: seriesRow.chosen ? Font.Medium : Font.Normal
               }
 
@@ -977,7 +1019,7 @@ Panel {
                 textFormat: Text.PlainText
                 color: seriesRow.chosen ? root.cPink : root.fg
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.body
+                font.pixelSize: root.fs(Style.font.body)
                 font.weight: seriesRow.chosen ? Font.Bold : Font.Medium
               }
 
@@ -988,7 +1030,7 @@ Panel {
                 textFormat: Text.PlainText
                 color: root.levelColor(seriesRow.modelData.nearestErrorPct)
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.body
+                font.pixelSize: root.fs(Style.font.body)
                 font.weight: Font.Medium
               }
 
@@ -1001,14 +1043,15 @@ Panel {
                 color: root.cCyan
                 opacity: 0.75
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
+                font.pixelSize: root.fs(Style.font.bodySmall)
               }
             }
           }
 
-          Item { width: 1; height: Style.space(6) }
+          Item { width: 1; height: root.sp(6) }
 
           PanelSectionHeader {
+            fontSize: root.fs(Style.font.caption)
             text: "TWO " + root.series + " PARTS"
             foreground: root.cPink
             fontFamily: root.fontFamily
@@ -1033,10 +1076,11 @@ Panel {
             detailColor: pair ? root.levelColor(pair.errorPct) : root.fg
           }
 
-          Item { width: 1; height: Style.space(6) }
+          Item { width: 1; height: root.sp(6) }
 
           PartList {
             title: root.series + " PART  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            seriesHint: root.seriesHint
             block: root.result && root.result.parts ? root.result.parts : null
           }
         }
@@ -1044,7 +1088,7 @@ Panel {
         // ---- Divider analysis results.
         Column {
           width: parent.width
-          spacing: Style.space(2)
+          spacing: root.sp(2)
           visible: root.tab === "Divider" && root.dividerMode === "Analyse" && root.result !== null && root.result.vout !== undefined
 
           Reading {
@@ -1071,17 +1115,13 @@ Panel {
           }
           Reading {
             label: "Power R1"
-            value: root.result ? root.loadText(root.result.loadR1) : ""
+            value: root.result ? root.loadText(root.result.loadR1, root.result.rating) : ""
             valueColor: root.result && root.result.loadR1 ? root.loadColor(root.result.loadR1.level) : root.cYellow
-            detail: root.result && root.result.rating ? "of " + Model.text(root.result.rating) : ""
-            detailColor: root.cPurple
           }
           Reading {
             label: "Power R2"
-            value: root.result ? root.loadText(root.result.loadR2) : ""
+            value: root.result ? root.loadText(root.result.loadR2, root.result.rating) : ""
             valueColor: root.result && root.result.loadR2 ? root.loadColor(root.result.loadR2.level) : root.cYellow
-            detail: root.result && root.result.rating ? "of " + Model.text(root.result.rating) : ""
-            detailColor: root.cPurple
           }
           Reading {
             visible: root.result !== null && root.result.loaded === true
@@ -1097,7 +1137,7 @@ Panel {
             detailColor: root.cPurple
           }
 
-          Item { width: 1; height: Style.space(6) }
+          Item { width: 1; height: root.sp(6) }
 
           PartList {
             title: "R1  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
@@ -1112,12 +1152,12 @@ Panel {
         // ---- Divider design results.
         Column {
           width: parent.width
-          spacing: Style.space(2)
+          spacing: root.sp(2)
           visible: root.tab === "Divider" && root.dividerMode === "Find values" && root.result !== null && root.result.candidates !== undefined
 
           Item {
             width: parent.width
-            height: Style.space(20)
+            height: root.sp(20)
 
             Repeater {
               model: [
@@ -1137,7 +1177,7 @@ Panel {
                 color: root.cPink
                 opacity: 0.85
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                font.pixelSize: root.fs(Style.font.caption)
                 font.letterSpacing: 1
               }
             }
@@ -1151,7 +1191,7 @@ Panel {
               required property var modelData
               required property int index
               width: parent.width
-              height: Style.space(24)
+              height: root.sp(24)
 
               Repeater {
                 model: [
@@ -1173,21 +1213,23 @@ Panel {
                   color: modelData.err ? root.levelColor(candidateRow.modelData.errorPct) : modelData.tint
                   opacity: candidateRow.index === 0 || modelData.err ? 1.0 : 0.8
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.body
+                  font.pixelSize: root.fs(Style.font.body)
                   font.weight: candidateRow.index === 0 && !modelData.err ? Font.Bold : Font.Medium
                 }
               }
             }
           }
 
-          Item { width: 1; height: Style.space(6) }
+          Item { width: 1; height: root.sp(6) }
 
           PartList {
             title: "BEST R1  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            seriesHint: root.seriesHint
             block: root.result && root.result.partsR1 ? root.result.partsR1 : null
           }
           PartList {
             title: "BEST R2  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            seriesHint: root.seriesHint
             block: root.result && root.result.partsR2 ? root.result.partsR2 : null
           }
 
@@ -1199,11 +1241,11 @@ Panel {
             wrapMode: Text.Wrap
             color: root.bad
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: root.fs(Style.font.body)
           }
         }
 
-        Item { width: 1; height: Style.space(6) }
+        Item { width: 1; height: root.sp(6) }
       }
     }
   }
