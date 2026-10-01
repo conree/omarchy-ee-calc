@@ -1,0 +1,132 @@
+// EE Calc architecture. Source for docs/architecture.svg; regenerate with:
+//   dot -Tsvg:cairo docs/architecture.dot -o docs/architecture.svg
+// Colours are the Dracula Pro Van Helsing palette; grey dashed boxes are
+// planned, not built. Every label is a table so multi-line text keeps its
+// line spacing.
+
+digraph eecalc {
+  graph [rankdir=TB, bgcolor="#0B0D0F", fontname="Comic Code Ligatures", fontcolor="#F8F8F2",
+         pad=0.45, nodesep=0.45, ranksep=0.65, compound=true, newrank=true, splines=spline]
+  node  [shape=box, style="rounded,filled", fillcolor="#15191D", color="#9580FF", penwidth=1.6,
+         fontname="Comic Code Ligatures", fontcolor="#F8F8F2", fontsize=13, margin="0.12,0.06"]
+  edge  [color="#708CA9", penwidth=1.3, arrowsize=0.8, fontname="Comic Code Ligatures",
+         fontcolor="#80FFEA", fontsize=11]
+
+  label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#FF80BF"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#9580FF"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#F8F8F2">   architecture, v0.2.0</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#708CA9">grey dashed boxes are planned features</FONT></TD></TR>
+  </TABLE>>
+  labelloc=t; labeljust=l
+
+  // ---- Inside the Omarchy shell -------------------------------------------
+  subgraph cluster_shell {
+    label=<<FONT COLOR="#80FFEA" POINT-SIZE="14"><B>Omarchy shell</B>  (Quickshell, QML)</FONT>>
+    labeljust=l; style="rounded,dashed"; color="#414D58"; penwidth=1.2; margin=16
+
+    bar [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>BarWidget.qml</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">bar icon, opens the panel,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">saves settings</FONT></TD></TR></TABLE>>]
+
+    panel [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD ALIGN="LEFT"><B>Panel.qml</B></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">E-series tab</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">Divider tab: Analyse + live schematic, Find values</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#8AFF80">package and tolerance selectors</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FFFF80">part lists, click to copy</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#80FFEA">power check against package rating</FONT></TD></TR></TABLE>>]
+
+    model [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>Model.js</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">helpers: result parsing,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">formatting, theme colours</FONT></TD></TR></TABLE>>]
+
+    { rank=same; bar; panel; model }
+    bar -> panel [label="  opens  "]
+    panel -> model [label="  uses  ", arrowhead=none, style=dashed]
+  }
+
+  // ---- Files and tools the shell side touches -------------------------------
+  subgraph cluster_ext {
+    label=<<FONT COLOR="#FF80BF" POINT-SIZE="12">on the system</FONT>>
+    labeljust=l; labelloc=b; style="rounded,dashed"; color="#414D58"; penwidth=1.0; margin=12
+    node [shape=note, color="#FF80BF"]
+    shelljson [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>shell.json</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">widget settings</FONT></TD></TR></TABLE>>]
+    colors    [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>colors.toml</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">theme palette</FONT></TD></TR></TABLE>>]
+    wlcopy    [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>wl-copy</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">clipboard</FONT></TD></TR></TABLE>>]
+    { rank=same; shelljson; colors; wlcopy }
+  }
+
+  bar   -> shelljson [label="  read / write  ", dir=both, arrowtail=normal]
+  panel -> colors    [label="  read  "]
+  panel -> wlcopy    [label="  part number  "]
+
+  // ---- The Zig engine -----------------------------------------------------
+  subgraph cluster_engine {
+    label=<<FONT COLOR="#8AFF80" POINT-SIZE="14"><B>bin/ee-calc</B>  (Zig engine, static x86-64)</FONT>>
+    labeljust=l; labelloc=b; style="rounded,dashed"; color="#414D58"; penwidth=1.2; margin=16
+
+    main [color="#8AFF80", label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>main.zig</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">commands: eseries, divider,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">divider-solve, parts</FONT></TD></TR></TABLE>>]
+
+    units [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>units.zig</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">engineering notation</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">in and out</FONT></TD></TR></TABLE>>]
+    eseries [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>eseries.zig</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">IEC 60063 E3 to E96,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">nearest value, best pair</FONT></TD></TR></TABLE>>]
+    divider [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>divider.zig</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">analysis and design</FONT></TD></TR></TABLE>>]
+    parts [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>parts.zig</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">package ratings, part numbers:</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Yageo RC, Vishay CRCW,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Panasonic ERJ, Yageo MFR</FONT></TD></TR></TABLE>>]
+
+    { rank=same; units; eseries; divider; parts }
+    main -> units
+    main -> eseries
+    main -> divider
+    main -> parts
+
+    // ---- Planned --------------------------------------------------------
+    subgraph cluster_planned {
+      label=<<FONT COLOR="#6B7785" POINT-SIZE="12">planned</FONT>>
+      labeljust=l; style="rounded,dashed"; color="#2A3138"; penwidth=1.0; margin=12
+      node [style="rounded,filled,dashed", fillcolor="#101316", color="#414D58", fontcolor="#6B7785"]
+      p_e192 [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+        <TR><TD><B>E192 series</B></TD></TR>
+        <TR><TD><FONT POINT-SIZE="11">0.1 % to 0.5 % values</FONT></TD></TR></TABLE>>]
+      p_marking [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+        <TR><TD><B>Marking codes</B></TD></TR>
+        <TR><TD><FONT POINT-SIZE="11">SMT 3/4-digit, EIA-96,</FONT></TD></TR>
+        <TR><TD><FONT POINT-SIZE="11">colour bands, both ways</FONT></TD></TR></TABLE>>]
+      p_led [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+        <TR><TD><B>LED resistor, Ohm's law</B></TD></TR>
+        <TR><TD><FONT POINT-SIZE="11">series resistor, V/I/R/P</FONT></TD></TR></TABLE>>]
+      p_rc [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+        <TR><TD><B>RC / LC</B></TD></TR>
+        <TR><TD><FONT POINT-SIZE="11">time constant, cutoff,</FONT></TD></TR>
+        <TR><TD><FONT POINT-SIZE="11">resonance</FONT></TD></TR></TABLE>>]
+      { rank=same; p_e192; p_marking; p_led; p_rc }
+    }
+    // Invisible edges stack the planned row under the built modules.
+    units -> p_e192 [style=invis]
+    eseries -> p_marking [style=invis]
+    divider -> p_led [style=invis]
+    parts -> p_rc [style=invis]
+  }
+
+  // ---- Copyright, bottom right: hung below the rightmost planned box -------
+  copyright [shape=plaintext, style="", label=<<FONT POINT-SIZE="11" COLOR="#6B7785">© 2026 conree</FONT>>]
+  p_rc -> copyright [style=invis]
+
+  // ---- Panel <-> engine -----------------------------------------------------
+  panel -> main [label=<  runs on each change<BR/>  (argv only, no shell)  >, color="#9580FF", penwidth=1.8]
+  main -> panel [label="  one JSON object  ", color="#8AFF80", penwidth=1.8]
+}

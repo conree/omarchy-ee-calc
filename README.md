@@ -116,6 +116,13 @@ The E-series tables are hard-coded from IEC 60063. E24 and the series
 below it include the historical values (2.7, 3.0, 3.3 … 8.2) that the
 10^(i/n) formula does not produce.
 
+## Architecture
+
+![EE Calc architecture](docs/architecture.svg)
+
+Grey dashed boxes are planned features. The diagram is generated from
+`docs/architecture.dot` with Graphviz.
+
 ## Install
 
 You need Omarchy Quattro on a 64-bit (x86-64) PC. Nothing else: the
