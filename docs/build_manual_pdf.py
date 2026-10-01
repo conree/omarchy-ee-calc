@@ -51,11 +51,11 @@ CSS = """
   margin: 0.6in 0.6in 0.75in 0.6in;
   @bottom-left {
     content: "EE Calc user manual  \\2014  v%(version)s  \\2014  %(date)s";
-    font-family: DocVisby; font-size: 9pt; color: #4b4b56;
+    font-family: DocVisby; font-size: 9pt; color: #4b4b56; font-feature-settings: "ss01";
   }
   @bottom-right {
     content: "Page " counter(page) " of " counter(pages);
-    font-family: DocVisby; font-size: 9pt; color: #4b4b56;
+    font-family: DocVisby; font-size: 9pt; color: #4b4b56; font-feature-settings: "ss01";
   }
 }
 
@@ -87,8 +87,25 @@ hr { border: 0; border-top: 1px solid #cfcfde; margin: 16pt 0 8pt; }
 hr + p { color: #4b4b56; font-size: 10pt; }
 img { display: block; margin: 6pt auto 12pt; max-width: 100%%; break-inside: avoid; }
 img.panel { width: 3.4in; }
+/* Visby's default zero is round, like a capital O. Its stylistic set 1
+   has an oval zero; it is switched on for each 0 alone (wrapped by
+   oval_zeros below), so M, i and j keep their default shapes. The footer
+   cannot hold markup, so ss01 applies to its whole line; it has no M, i
+   or j in it. */
+.z { font-feature-settings: "ss01"; }
 img.overview { width: 100%%; }
 """
+
+
+def oval_zeros(html):
+    """Wrap each 0 in text in <span class="z">, leaving tags, attributes
+    (image paths, links) and character references such as &#160; alone."""
+    def text(segment):
+        return re.sub(r"&#?\w+;|0",
+                      lambda m: '<span class="z">0</span>' if m.group(0) == "0" else m.group(0),
+                      segment)
+    parts = re.split(r"(<[^>]*>)", html)
+    return "".join(part if part.startswith("<") else text(part) for part in parts)
 
 
 def find_chromium():
@@ -111,6 +128,7 @@ def main():
         return f'<img src="{light}" class="{css_class}"'
 
     html_body = re.sub(r'<img src="([^"]+)"', swap, html_body)
+    html_body = oval_zeros(html_body)
     missing = [p for p in re.findall(r'<img src="([^"]+)"', html_body) if not (DOCS / p).exists()]
     if missing:
         sys.exit(f"Missing images: {missing}")
