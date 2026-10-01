@@ -109,7 +109,7 @@ below it include the historical values (2.7, 3.0, 3.3 … 8.2) that the
 
 ## Install
 
-You need Omarchy Quattro on a 64-bit Intel or AMD PC. Nothing else: the
+You need Omarchy Quattro on a 64-bit (x86-64) PC. Nothing else: the
 calculator program comes ready-built in the plugin.
 
 **1. Add the plugin.** In a terminal, run:
@@ -118,17 +118,20 @@ calculator program comes ready-built in the plugin.
 omarchy plugin add https://github.com/conree/omarchy-ee-calc.git
 ```
 
-That address is this GitHub page. Omarchy downloads the plugin to
-`~/.config/omarchy/plugins/conree.ee-calc/` and leaves it switched off, so
-you can look through it first if you want to.
+That address is this GitHub page. Omarchy shows a warning that plugins run
+with your permissions and asks you to confirm, then downloads the plugin to
+`~/.config/omarchy/plugins/conree.ee-calc/`. It then asks whether to switch
+it on now: answer **Yes** and choose where on the bar it goes (then skip
+step 2), or **No** to look through it first.
 
-**2. Switch it on:**
+**2. Switch it on**, if you answered No:
 
 ```
 omarchy plugin enable conree.ee-calc
 ```
 
-A calculator icon appears on the right of your bar.
+A calculator icon appears on the right of your bar (or wherever you
+placed it in step 1).
 
 **3. Try it.** Click the icon and type `4k7` in the Value box. You should
 see the nearest standard values in every series.
@@ -142,7 +145,8 @@ incomplete: remove the plugin (below) and add it again.
 omarchy plugin update conree.ee-calc
 ```
 
-Each update brings the matching ready-built program with it.
+The ready-built program is one of the plugin's files, so an update
+replaces it along with everything else.
 
 ### Remove
 
@@ -152,7 +156,7 @@ omarchy plugin remove conree.ee-calc
 
 ### Download only the program
 
-Every version is also published on the
+From 0.2.0 on, each version is also published on the
 [Releases page](https://github.com/conree/omarchy-ee-calc/releases), with
 the program and its SHA-256 checksum. The **Releases** link on the right of
 the GitHub page goes there.
@@ -188,10 +192,15 @@ ready-built program matches the source, or for changing it.
    ```
 
    `ee-calc: OK` means your build is byte-for-byte identical to the one
-   shipped. The build is reproducible and targets a baseline x86-64
-   processor, so it runs on any 64-bit Intel or AMD machine.
+   shipped. The build is reproducible, and it targets the baseline x86-64
+   instruction set, so it does not depend on newer processor features
+   such as AVX.
 
-Run the tests with `zig build test` in `engine/`.
+To run the tests, in `engine/`:
+
+```
+zig build test --cache-dir ~/.cache/ee-calc
+```
 
 ## Use
 
