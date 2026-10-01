@@ -22,6 +22,14 @@ An electronics bench calculator for the Omarchy Quattro bar.
   a share of the chosen package's rating: green up to half, yellow up to
   the rating, red beyond it.
 
+The **[user manual](docs/USER_MANUAL.md)** explains every feature, reading
+and message.
+
+## Updates
+
+- **2026-10-01:** added the [user manual](docs/USER_MANUAL.md) and an
+  [architecture diagram](#architecture). No change to the plugin itself.
+
 ## What's new in 0.2.0
 
 Version 0.1.0, the first release of EE Calc, had a flaw in its
