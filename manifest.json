@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "id": "conree.ee-calc",
+  "name": "EE Calc",
+  "version": "0.1.0",
+  "author": "conree",
+  "license": "MIT",
+  "description": "Electronics bench calculator in the bar: nearest E-series value with two-resistor combinations, and voltage divider analysis and design from standard values.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "EE Calc",
+    "description": "Nearest E-series values and voltage divider design",
+    "category": "Productivity",
+    "aliases": [
+      "resistor",
+      "e-series",
+      "e24",
+      "e96",
+      "divider",
+      "electronics",
+      "calculator"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "series": "E24",
+      "tab": "E-series",
+      "font": "Comic Code Ligatures"
+    },
+    "schema": [
+      {
+        "key": "series",
+        "type": "enum",
+        "label": "Series",
+        "options": [
+          "E3",
+          "E6",
+          "E12",
+          "E24",
+          "E48",
+          "E96"
+        ],
+        "defaultValue": "E24",
+        "description": "Series used for two-resistor combinations and divider design."
+      },
+      {
+        "key": "tab",
+        "type": "enum",
+        "label": "Opens on",
+        "options": [
+          "E-series",
+          "Divider"
+        ],
+        "defaultValue": "E-series",
+        "description": "The calculator the panel opens on. Updated to the last one you used."
+      },
+      {
+        "key": "font",
+        "type": "string",
+        "label": "Font",
+        "defaultValue": "Comic Code Ligatures",
+        "description": "Font family for the panel. Falls back to the shell font when it is blank or not installed."
+      }
+    ]
+  }
+}
