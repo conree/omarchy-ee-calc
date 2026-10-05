@@ -27,8 +27,19 @@ and message.
 
 ## Updates
 
+- **v0.2.5:** version and documentation update. No change to the
+  calculator.
 - **2026-10-01:** added the [user manual](docs/USER_MANUAL.md) and an
   [architecture diagram](#architecture). No change to the plugin itself.
+
+## What's new in 0.2.5
+
+Version number and documentation only. The calculator is unchanged from
+0.2.0.
+
+The marketplace lists EE Calc as Manual setup because the plugin includes
+a ready-built program. Install it with the two commands under
+[Install](#install); no Zig and no build step are needed.
 
 ## What's new in 0.2.0
 
