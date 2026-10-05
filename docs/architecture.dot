@@ -15,7 +15,7 @@ digraph eecalc {
          fontcolor="#80FFEA", fontsize=11]
 
   label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#FF80BF"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#9580FF"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#F8F8F2">   architecture, v0.2.0</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#FF80BF"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#9580FF"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#F8F8F2">   architecture, v0.2.5</FONT></TD></TR>
     <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#708CA9">grey dashed boxes are planned features</FONT></TD></TR>
   </TABLE>>
   labelloc=t; labeljust=l
