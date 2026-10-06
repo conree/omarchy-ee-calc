@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "conree.ee-calc",
   "name": "EE Calc",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "conree",
   "license": "MIT",
   "description": "Electronics bench calculator in the bar: nearest E-series values with part numbers, voltage dividers, SMD codes and colour bands, LED resistors, Ohm's law, and RC and LC.",

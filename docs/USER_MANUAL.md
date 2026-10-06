@@ -1,6 +1,6 @@
 # EE Calc user manual
 
-Version 0.3.0. For EE Calc, the electronics bench calculator plugin for the
+Version 0.3.1. For EE Calc, the electronics bench calculator plugin for the
 Omarchy Quattro bar.
 
 ## 1. What EE Calc does
@@ -23,7 +23,7 @@ It has five tabs, in a row under the title:
 - **RC / LC:** RC time constant and cutoff, and LC resonance, each with
   the nearest standard part.
 
-![EE Calc: E-series, divider with a load, and divider design](../preview.png)
+![EE Calc: the E-series tab, colour bands on the Codes tab, and a loaded divider](../preview.png)
 
 ## 2. Install, enable, update and remove
 
@@ -50,7 +50,7 @@ omarchy plugin enable conree.ee-calc
 A calculator icon appears on the right of your bar, or wherever you placed
 it.
 The panel header shows the installed version next to the name, for example
-**EE Calc v0.3.0**.
+**EE Calc v0.3.1**.
 
 **Update:**
 
@@ -223,6 +223,8 @@ The Codes tab has three modes: **Value**, **SMD code** and **Bands**.
 
 ### Value
 
+![Codes, Value](screenshots/codes-value.png)
+
 Type a resistance in **Value**. The panel shows:
 
 | Reading | Meaning |
@@ -247,6 +249,8 @@ The part list for the value is at the bottom.
 
 ### SMD code
 
+![Codes, SMD code, with a code that reads two ways](screenshots/codes-smd.png)
+
 Type the code printed on the part in **Code**: `472`, `4701`, `4R7`,
 `R047`, `68C`, or `0` or `000` for a zero-ohm link. Each reading shows the
 scheme, the value and a note on the parts that use that scheme, then a
@@ -261,6 +265,8 @@ different things to different makers, and the note says so.
 Text that is not a marking code gives **not a resistor marking code**.
 
 ### Bands
+
+![Codes, Bands, with the tolerance band selected](screenshots/codes-bands.png)
 
 A resistor is drawn with its bands. Choose **4 band**, **5 band** or
 **6 band** above it, then click a band. Its colours appear as swatches
@@ -286,6 +292,8 @@ figures cannot fit in four bands, so its third figure is dropped. A
 
 ### LED
 
+![LED, three LEDs in series](screenshots/led.png)
+
 Enter the **Supply** voltage, the LED's forward voltage **LED Vf**, the
 **Current** you want, and how many LEDs are **In series** (1 to start
 with).
@@ -305,6 +313,8 @@ times the number of LEDs.
 
 ### Ohm's law
 
+![Ohm's law](screenshots/ohm.png)
+
 Fill in any two of **Voltage**, **Current**, **Resistance** and **Power**
 and leave the other two blank. The two you gave are shown plain and
 marked *given*; the two worked out are in bold. If three or four boxes
@@ -313,6 +323,8 @@ are filled, the panel asks for exactly two.
 ## 11. RC / LC
 
 ### RC
+
+![RC, with the capacitor worked out](screenshots/rc.png)
 
 Fill in any two of **R**, **C**, **Cutoff** and **Time const.**, leaving
 the rest blank. The cutoff and the time constant say the same thing, so
@@ -331,6 +343,8 @@ nearest standard part and the cutoff it gives. A resistor comes from your
 in. No resistor is suggested outside 1 mΩ to 100 GΩ.
 
 ### LC
+
+![LC, with the capacitor worked out](screenshots/lc.png)
 
 Fill in any two of **L**, **C** and **Resonance**. The readings are L, C,
 the resonant frequency 1 / (2π √(LC)), and the **characteristic
@@ -357,6 +371,8 @@ E192, so an E192-only value lists Vishay alone. Below 47 Ω Panasonic makes
 only 0.5 % parts, at ±50 ppm/K (±100 ppm/K in 0402); the family name in
 the list shows which. There are no through-hole parts at these
 tolerances.
+
+![E-series at 0.1 %, with thin-film part numbers](screenshots/e-series-thin-film.png)
 
 **Copying.** Click a part number to copy it to the clipboard. The power
 figure next to it changes to **copied** for a moment.
