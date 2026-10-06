@@ -25,7 +25,9 @@ const prefixes = [_]Prefix{
 };
 
 // Unit symbols a user may type after the value; they carry no scale.
-const unit_suffixes = [_][]const u8{ "\u{2126}", "\u{03A9}", "ohms", "ohm", "Ohms", "Ohm", "V", "A", "W" };
+// "Hz" comes before "H" and the ohm spellings before "s", so the longest
+// suffix wins: "1kHz" is 1000, "10ms" is 0.01.
+const unit_suffixes = [_][]const u8{ "\u{2126}", "\u{03A9}", "ohms", "ohm", "Ohms", "Ohm", "Hz", "V", "A", "W", "F", "H", "s" };
 
 /// Parses a positive or negative value in engineering notation.
 /// Lowercase m is milli and uppercase M is mega; a prefix may stand in for
@@ -229,6 +231,13 @@ test "parse engineering notation" {
     try testing.expectEqual(@as(f64, 4700), try parse("4.7 k\u{2126}"));
     try testing.expectEqual(@as(f64, 1000), try parse("1e3"));
     try testing.expectEqual(@as(f64, 1e6), try parse("1M"));
+    try testing.expectApproxEqRel(@as(f64, 100e-9), try parse("100nF"), 1e-12);
+    try testing.expectApproxEqRel(@as(f64, 4.7e-6), try parse("4u7F"), 1e-12);
+    try testing.expectApproxEqRel(@as(f64, 10e-3), try parse("10mH"), 1e-12);
+    try testing.expectEqual(@as(f64, 1e6), try parse("1MHz"));
+    try testing.expectEqual(@as(f64, 1000), try parse("1kHz"));
+    try testing.expectApproxEqRel(@as(f64, 10e-3), try parse("10ms"), 1e-12);
+    try testing.expectEqual(@as(f64, 20e-3), try parse("20mA"));
 }
 
 test "parse rejects garbage" {

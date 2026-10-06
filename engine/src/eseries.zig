@@ -11,6 +11,7 @@ pub const Series = enum {
     e24,
     e48,
     e96,
+    e192,
 
     pub fn name(self: Series) []const u8 {
         return switch (self) {
@@ -20,6 +21,7 @@ pub const Series = enum {
             .e24 => "E24",
             .e48 => "E48",
             .e96 => "E96",
+            .e192 => "E192",
         };
     }
 
@@ -39,6 +41,7 @@ pub const Series = enum {
             .e24 => &e24,
             .e48 => &e48,
             .e96 => &e96,
+            .e192 => &e192,
         };
     }
 };
@@ -59,6 +62,23 @@ const e96 = [_]u16{
     681, 698, 715, 732, 750, 768, 787, 806, 825, 845, 866, 887, 909, 931, 953, 976,
 };
 const e48 = everyOther(96, e96);
+
+// E192 is the rounding formula except at index 185, where IEC 60063 lists
+// 920 and the formula gives 919. Every second entry is E96.
+const e192 = [_]u16{
+    100, 101, 102, 104, 105, 106, 107, 109, 110, 111, 113, 114, 115, 117, 118, 120,
+    121, 123, 124, 126, 127, 129, 130, 132, 133, 135, 137, 138, 140, 142, 143, 145,
+    147, 149, 150, 152, 154, 156, 158, 160, 162, 164, 165, 167, 169, 172, 174, 176,
+    178, 180, 182, 184, 187, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213,
+    215, 218, 221, 223, 226, 229, 232, 234, 237, 240, 243, 246, 249, 252, 255, 258,
+    261, 264, 267, 271, 274, 277, 280, 284, 287, 291, 294, 298, 301, 305, 309, 312,
+    316, 320, 324, 328, 332, 336, 340, 344, 348, 352, 357, 361, 365, 370, 374, 379,
+    383, 388, 392, 397, 402, 407, 412, 417, 422, 427, 432, 437, 442, 448, 453, 459,
+    464, 470, 475, 481, 487, 493, 499, 505, 511, 517, 523, 530, 536, 542, 549, 556,
+    562, 569, 576, 583, 590, 597, 604, 612, 619, 626, 634, 642, 649, 657, 665, 673,
+    681, 690, 698, 706, 715, 723, 732, 741, 750, 759, 768, 777, 787, 796, 806, 816,
+    825, 835, 845, 856, 866, 876, 887, 898, 909, 920, 931, 942, 953, 965, 976, 988,
+};
 
 fn everyOther(comptime n: usize, comptime src: [n]u16) [n / 2]u16 {
     var out: [n / 2]u16 = undefined;
@@ -178,6 +198,19 @@ test "table sizes" {
     try testing.expectEqual(@as(usize, 24), Series.e24.values().len);
     try testing.expectEqual(@as(usize, 48), Series.e48.values().len);
     try testing.expectEqual(@as(usize, 96), Series.e96.values().len);
+    try testing.expectEqual(@as(usize, 192), Series.e192.values().len);
+}
+
+test "E192 is the formula except 920, and contains E96" {
+    for (e192, 0..) |m, i| {
+        const f = @round(std.math.pow(f64, 10, @as(f64, @floatFromInt(i)) / 192) * 100);
+        const want: f64 = if (i == 185) 920 else f;
+        try testing.expectEqual(want, @as(f64, @floatFromInt(m)));
+    }
+    for (e96, 0..) |m, i| try testing.expectEqual(m, e192[i * 2]);
+    try testing.expect(nearest(.e192, 1010).exact);
+    try testing.expect(nearest(.e192, 9200).exact);
+    try testing.expect(!nearest(.e192, 9190).exact);
 }
 
 test "E96 matches the rounding formula except where the standard differs" {

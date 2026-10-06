@@ -73,6 +73,22 @@ Panel {
     }
   }
   property string dividerMode: "Analyse"
+  property string codesMode: "Value"
+  property string ledMode: "LED"
+  property string rclcMode: "RC"
+
+  // The colour bands being edited in Codes > Bands, and the band whose
+  // colour the picker is showing (-1 for none).
+  property var bandColours: ["yellow", "violet", "black", "brown", "brown"]
+  property int selectedBand: -1
+
+  // Which shared rows a calculator uses.
+  readonly property bool usesSeries: tab === "E-series"
+    || (tab === "Divider" && dividerMode === "Find values")
+    || (tab === "LED / Ohm" && ledMode === "LED")
+    || (tab === "RC / LC" && rclcMode === "RC")
+  readonly property bool usesParts: tab === "E-series" || tab === "Divider" || tab === "Codes"
+    || (tab === "LED / Ohm" && ledMode === "LED")
 
   function remember(key, value) {
     if (hostWidget) hostWidget.persistSetting(key, value)
@@ -111,10 +127,68 @@ Panel {
     return ["--package", packageCode, "--tolerance", tolerance]
   }
 
+  // Optional fields go to the engine only when filled in: in the
+  // any-two-of calculators an empty field is the one to work out.
+  function addIfFilled(args, option, field) {
+    if (field.text.trim() !== "") args.push(option, field.text)
+  }
+
+  // The any-two-of calculators wait for a second value instead of
+  // reporting one as an error; three or more go to the engine, which says
+  // why that does not work.
+  function filledCount(fields) {
+    var n = 0
+    for (var i = 0; i < fields.length; i++) if (fields[i].text.trim() !== "") n++
+    return n
+  }
+
   function buildArgs() {
     if (tab === "E-series") {
       if (valueField.text.trim() === "") return null
       return ["eseries", valueField.text, "--series", series].concat(partArgs())
+    }
+    if (tab === "Codes") {
+      if (codesMode === "Value") {
+        if (codesValueField.text.trim() === "") return null
+        return ["codes", codesValueField.text].concat(partArgs())
+      }
+      if (codesMode === "SMD code") {
+        if (markingField.text.trim() === "") return null
+        return ["marking", markingField.text].concat(partArgs())
+      }
+      return ["bands", bandColours.join(",")].concat(partArgs())
+    }
+    if (tab === "LED / Ohm") {
+      if (ledMode === "LED") {
+        if (ledVsField.text.trim() === "" || ledVfField.text.trim() === "" || ledIfField.text.trim() === "") return null
+        var l = ["led", "--vs", ledVsField.text, "--vf", ledVfField.text, "--if", ledIfField.text, "--series", series]
+        addIfFilled(l, "--count", ledCountField)
+        return l.concat(partArgs())
+      }
+      if (filledCount([ohmVField, ohmIField, ohmRField, ohmPField]) < 2) return null
+      var o = ["ohm"]
+      addIfFilled(o, "--v", ohmVField)
+      addIfFilled(o, "--i", ohmIField)
+      addIfFilled(o, "--r", ohmRField)
+      addIfFilled(o, "--p", ohmPField)
+      return o
+    }
+    if (tab === "RC / LC") {
+      if (rclcMode === "RC") {
+        if (filledCount([rcRField, rcCField, rcFField, rcTauField]) < 2) return null
+        var r = ["rc", "--series", series]
+        addIfFilled(r, "--r", rcRField)
+        addIfFilled(r, "--c", rcCField)
+        addIfFilled(r, "--f", rcFField)
+        addIfFilled(r, "--tau", rcTauField)
+        return r
+      }
+      if (filledCount([lcLField, lcCField, lcFField]) < 2) return null
+      var c = ["lc"]
+      addIfFilled(c, "--l", lcLField)
+      addIfFilled(c, "--c", lcCField)
+      addIfFilled(c, "--f", lcFField)
+      return c
     }
     if (dividerMode === "Analyse") {
       if (vinField.text.trim() === "" || r1Field.text.trim() === "" || r2Field.text.trim() === "") return null
@@ -273,14 +347,29 @@ Panel {
     return false
   }
 
+  function firstField() {
+    switch (tab) {
+      case "E-series": return valueField
+      case "Divider": return dividerMode === "Analyse" ? vinField : solveVinField
+      case "Codes":
+        if (codesMode === "Value") return codesValueField
+        return codesMode === "SMD code" ? markingField : null
+      case "LED / Ohm": return ledMode === "LED" ? ledVsField : ohmVField
+      default: return rclcMode === "RC" ? rcRField : lcLField
+    }
+  }
+
   function focusFirstField() {
-    var f = tab === "E-series" ? valueField : (dividerMode === "Analyse" ? vinField : solveVinField)
+    var f = firstField()
+    // Codes > Bands has no text field; keys then stay with the panel.
+    if (f === null) { keyCatcher.forceActiveFocus(); return }
     f.forceActiveFocus()
     f.selectAll()
   }
 
   function setTab(value) {
     tab = value
+    selectedBand = -1
     remember("tab", value)
     result = null
     errorText = ""
@@ -288,12 +377,28 @@ Panel {
     Qt.callLater(focusFirstField)
   }
 
-  function setDividerMode(value) {
-    dividerMode = value
+  function setMode(name, value) {
+    root[name] = value
+    selectedBand = -1
     result = null
     errorText = ""
     request()
     Qt.callLater(focusFirstField)
+  }
+
+  function setDividerMode(value) { setMode("dividerMode", value) }
+
+  function setBandCount(count) {
+    bandColours = Model.changeBandCount(bandColours, count)
+    selectedBand = -1
+    request()
+  }
+
+  function setBandColour(index, colour) {
+    var b = bandColours.slice()
+    b[index] = colour
+    bandColours = b
+    request()
   }
 
   function setSeries(value) {
@@ -326,9 +431,9 @@ Panel {
   Process { id: copier; running: false }
   Timer { id: copiedReset; interval: 1500; onTriggered: root.copiedMpn = "" }
 
-  // 5 % parts exist only in E24 values, so an E48/E96 result at 5 % has no
-  // part. Say how to get one rather than only that there is none.
-  readonly property bool seriesHint: tolerance === "5" && (series === "E48" || series === "E96")
+  // 5 % parts exist only in E24 values, so an E48/E96/E192 result at 5 %
+  // has no part. Say how to get one rather than only that there is none.
+  readonly property bool seriesHint: tolerance === "5" && (series === "E48" || series === "E96" || series === "E192")
 
   function loadColor(level) {
     if (level === "ok") return root.cGreen
@@ -586,6 +691,117 @@ Panel {
     }
   }
 
+  // The standard part nearest a value the RC/LC calculators worked out,
+  // and what using it gives instead.
+  component SuggestBlock: Column {
+    id: suggest
+    property var suggestion: null
+    property string part: ""
+    property string effect: ""
+    width: parent ? parent.width : 0
+    spacing: root.sp(2)
+    topPadding: root.sp(8)
+    visible: suggestion !== null
+
+    PanelSectionHeader {
+      fontSize: root.fs(Style.font.caption)
+      text: "NEAREST " + (suggest.suggestion ? suggest.suggestion.series : "") + " " + suggest.part
+      foreground: root.cPink
+      fontFamily: root.fontFamily
+    }
+    Reading {
+      label: suggest.part
+      value: suggest.suggestion ? Model.text(suggest.suggestion.value) : ""
+      valueColor: root.cPink
+      strong: true
+      detail: suggest.effect
+      detailColor: root.cGreen
+    }
+  }
+
+  // A through-hole resistor with its colour bands, laid out the way parts
+  // are printed: the value bands together at one end, the tolerance band
+  // (and the temperature coefficient band) set apart at the other. When
+  // editable, a click on a band selects it for the colour picker.
+  component BandResistor: Item {
+    id: resistor
+    property var bands: []
+    property bool editable: false
+    property int selected: -1
+    signal bandClicked(int index)
+
+    readonly property real bodyW: root.sp(230)
+    readonly property real bodyH: root.sp(46)
+    readonly property real lead: root.sp(34)
+    readonly property real bandW: root.sp(14)
+    readonly property real step: root.sp(26)
+    // Digits and multiplier, then the rest after the gap.
+    readonly property int headCount: bands.length === 4 ? 3 : 4
+    width: bodyW + 2 * lead
+    height: bodyH + root.sp(14)
+
+    Rectangle {
+      y: (resistor.bodyH - height) / 2
+      width: parent.width
+      height: root.sp(3)
+      color: "#9A9A9A"
+    }
+
+    Rectangle {
+      id: body
+      x: resistor.lead
+      width: resistor.bodyW
+      height: resistor.bodyH
+      radius: height * 0.35
+      color: "#D8C7A0"
+      border.width: 1
+      border.color: Qt.rgba(0, 0, 0, 0.35)
+    }
+
+    Repeater {
+      model: resistor.bands
+
+      Item {
+        id: bandSlot
+        required property var modelData
+        required property int index
+        readonly property bool head: index < resistor.headCount
+        readonly property real tailStart: body.x + body.width - root.sp(30) - resistor.bandW
+          - (resistor.bands.length - resistor.headCount - 1) * resistor.step
+        readonly property bool isSelected: resistor.editable && resistor.selected === index
+        x: (head ? body.x + root.sp(30) + index * resistor.step
+                 : tailStart + (index - resistor.headCount) * resistor.step) - (resistor.step - resistor.bandW) / 2
+        width: resistor.step
+        height: resistor.height
+
+        Rectangle {
+          x: (parent.width - width) / 2
+          y: 1
+          width: resistor.bandW
+          height: resistor.bodyH - 2
+          color: Model.BAND_PAINT[bandSlot.modelData] || "transparent"
+          border.width: bandSlot.modelData === "none" ? 1 : 0
+          border.color: Qt.rgba(0, 0, 0, 0.45)
+          opacity: bandSlot.modelData === "none" ? 0.6 : 1
+        }
+
+        // Marker under the selected band.
+        Rectangle {
+          visible: bandSlot.isSelected
+          x: (parent.width - width) / 2
+          y: resistor.bodyH + root.sp(5)
+          width: resistor.bandW
+          height: root.sp(4)
+          radius: height / 2
+          color: root.cPink
+        }
+
+        HoverHandler { enabled: resistor.editable; cursorShape: Qt.PointingHandCursor }
+        TapHandler { enabled: resistor.editable; onTapped: resistor.bandClicked(bandSlot.index) }
+      }
+    }
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
@@ -630,12 +846,13 @@ Panel {
 
         Item { width: 1; height: root.sp(4) }
 
-        // ---- Header.
+        // ---- Header: the name, then the calculators on a row of their own.
         Item {
           width: parent.width
-          height: tabs.implicitHeight
+          height: title.implicitHeight
 
           Row {
+            id: title
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.sp(6)
@@ -669,18 +886,17 @@ Panel {
             }
           }
 
-          ButtonGroup {
-            id: tabs
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            options: Model.TABS
-            value: root.tab
-            focusable: false
-            fontSize: root.fs(Style.font.body)
-            foreground: root.cPurple
-            fontFamily: root.fontFamily
-            onChanged: function(value) { root.setTab(value) }
-          }
+        }
+
+        ButtonGroup {
+          id: tabs
+          options: Model.TABS
+          value: root.tab
+          focusable: false
+          fontSize: root.fs(Style.font.body)
+          foreground: root.cPurple
+          fontFamily: root.fontFamily
+          onChanged: function(value) { root.setTab(value) }
         }
 
         PanelSeparator { width: parent.width }
@@ -863,11 +1079,209 @@ Panel {
           }
         }
 
+        // ---- Codes.
+        Column {
+          width: parent.width
+          spacing: root.sp(8)
+          visible: root.tab === "Codes"
+
+          ButtonGroup {
+            options: Model.CODES_MODES
+            value: root.codesMode
+            focusable: false
+            fontSize: root.fs(Style.font.body)
+            foreground: root.cPink
+            fontFamily: root.fontFamily
+            onChanged: function(value) { root.setMode("codesMode", value) }
+          }
+
+          Field {
+            id: codesValueField
+            visible: root.codesMode === "Value"
+            label: "Value"
+            text: "4k99"
+            hint: "Ω  e.g. 4k7, 2R2, 1M5"
+          }
+
+          Field {
+            id: markingField
+            visible: root.codesMode === "SMD code"
+            label: "Code"
+            text: "4991"
+            hint: "e.g. 472, 4991, 4R7, 68C"
+          }
+
+          // Bands: pick a count, click a band, pick its colour.
+          Column {
+            width: parent.width
+            spacing: root.sp(8)
+            visible: root.codesMode === "Bands"
+
+            ButtonGroup {
+              options: Model.BAND_COUNTS
+              value: String(root.bandColours.length)
+              focusable: false
+              fontSize: root.fs(Style.font.body)
+              foreground: root.cCyan
+              fontFamily: root.fontFamily
+              onChanged: function(value) { root.setBandCount(parseInt(value, 10)) }
+            }
+
+            BandResistor {
+              anchors.horizontalCenter: parent.horizontalCenter
+              bands: root.bandColours
+              editable: true
+              selected: root.selectedBand
+              onBandClicked: function(index) { root.selectedBand = root.selectedBand === index ? -1 : index }
+            }
+
+            Text {
+              width: parent.width
+              horizontalAlignment: Text.AlignHCenter
+              textFormat: Text.PlainText
+              text: root.selectedBand < 0
+                ? "Click a band to change its colour."
+                : "Band " + (root.selectedBand + 1) + ", " + Model.BAND_ROLE_NAMES[Model.bandRole(root.bandColours.length, root.selectedBand)]
+                  + ": " + root.bandColours[root.selectedBand]
+              color: root.cCyan
+              opacity: 0.85
+              font.family: root.fontFamily
+              font.pixelSize: root.fs(Style.font.bodySmall)
+            }
+
+            // The colours that band may take.
+            Flow {
+              width: parent.width
+              spacing: root.sp(6)
+              visible: root.selectedBand >= 0
+
+              Repeater {
+                model: root.selectedBand >= 0
+                  ? Model.bandChoices(Model.bandRole(root.bandColours.length, root.selectedBand), root.bandColours.length) : []
+
+                Rectangle {
+                  id: swatch
+                  required property var modelData
+                  readonly property bool current: root.bandColours[root.selectedBand] === modelData
+                  width: swatchLabel.implicitWidth + root.sp(28)
+                  height: root.sp(24)
+                  radius: root.sp(4)
+                  color: "transparent"
+                  border.width: current ? 2 : 1
+                  border.color: current ? root.cPink : Qt.rgba(root.fg.r, root.fg.g, root.fg.b, 0.3)
+
+                  Rectangle {
+                    x: root.sp(6)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: root.sp(12)
+                    height: root.sp(12)
+                    radius: root.sp(2)
+                    color: Model.BAND_PAINT[swatch.modelData]
+                    border.width: 1
+                    border.color: Qt.rgba(root.fg.r, root.fg.g, root.fg.b, 0.5)
+                  }
+
+                  Text {
+                    id: swatchLabel
+                    x: root.sp(22)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: swatch.modelData
+                    textFormat: Text.PlainText
+                    color: root.fg
+                    font.family: root.fontFamily
+                    font.pixelSize: root.fs(Style.font.bodySmall)
+                  }
+
+                  HoverHandler { cursorShape: Qt.PointingHandCursor }
+                  TapHandler { onTapped: root.setBandColour(root.selectedBand, swatch.modelData) }
+                }
+              }
+            }
+          }
+        }
+
+        // ---- LED and Ohm's law.
+        Column {
+          width: parent.width
+          spacing: root.sp(8)
+          visible: root.tab === "LED / Ohm"
+
+          ButtonGroup {
+            options: Model.LED_MODES
+            value: root.ledMode
+            focusable: false
+            fontSize: root.fs(Style.font.body)
+            foreground: root.cPink
+            fontFamily: root.fontFamily
+            onChanged: function(value) { root.setMode("ledMode", value) }
+          }
+
+          Column {
+            width: parent.width
+            spacing: root.sp(8)
+            visible: root.ledMode === "LED"
+
+            Field { id: ledVsField; label: "Supply"; text: "5"; hint: "V" }
+            Field { id: ledVfField; label: "LED Vf"; text: "2"; hint: "V  forward voltage" }
+            Field { id: ledIfField; label: "Current"; text: "10m"; hint: "A  e.g. 20m" }
+            Field { id: ledCountField; label: "In series"; text: "1"; hint: "LEDs" }
+          }
+
+          Column {
+            width: parent.width
+            spacing: root.sp(8)
+            visible: root.ledMode === "Ohm's law"
+
+            Field { id: ohmVField; label: "Voltage"; text: "12"; hint: "V" }
+            Field { id: ohmIField; label: "Current"; placeholder: "blank to work out"; hint: "A" }
+            Field { id: ohmRField; label: "Resistance"; text: "1k"; hint: "Ω" }
+            Field { id: ohmPField; label: "Power"; placeholder: "blank to work out"; hint: "W" }
+          }
+        }
+
+        // ---- RC and LC.
+        Column {
+          width: parent.width
+          spacing: root.sp(8)
+          visible: root.tab === "RC / LC"
+
+          ButtonGroup {
+            options: Model.RCLC_MODES
+            value: root.rclcMode
+            focusable: false
+            fontSize: root.fs(Style.font.body)
+            foreground: root.cPink
+            fontFamily: root.fontFamily
+            onChanged: function(value) { root.setMode("rclcMode", value) }
+          }
+
+          Column {
+            width: parent.width
+            spacing: root.sp(8)
+            visible: root.rclcMode === "RC"
+
+            Field { id: rcRField; label: "R"; text: "10k"; hint: "Ω" }
+            Field { id: rcCField; label: "C"; text: "100n"; hint: "F" }
+            Field { id: rcFField; label: "Cutoff"; placeholder: "blank to work out"; hint: "Hz" }
+            Field { id: rcTauField; label: "Time const."; placeholder: "or give this"; hint: "s  instead of cutoff" }
+          }
+
+          Column {
+            width: parent.width
+            spacing: root.sp(8)
+            visible: root.rclcMode === "LC"
+
+            Field { id: lcLField; label: "L"; text: "10u"; hint: "H" }
+            Field { id: lcCField; label: "C"; text: "100n"; hint: "F" }
+            Field { id: lcFField; label: "Resonance"; placeholder: "blank to work out"; hint: "Hz" }
+          }
+        }
+
         // ---- Series choice, shared by combinations and divider design.
         Item {
           width: parent.width
           height: seriesGroup.implicitHeight
-          visible: root.tab === "E-series" || root.dividerMode === "Find values"
+          visible: root.usesSeries
 
           Text {
             anchors.left: parent.left
@@ -898,6 +1312,7 @@ Panel {
         Item {
           width: parent.width
           height: packageGroup.implicitHeight
+          visible: root.usesParts
 
           Text {
             anchors.left: parent.left
@@ -926,6 +1341,7 @@ Panel {
         Item {
           width: parent.width
           height: toleranceGroup.implicitHeight
+          visible: root.usesParts
 
           Text {
             anchors.left: parent.left
@@ -972,9 +1388,17 @@ Panel {
           visible: root.result === null && root.errorText === "" && root.engineFound
           wrapMode: Text.Wrap
           textFormat: Text.PlainText
-          text: root.tab === "E-series"
-            ? "Type a value to see the nearest standard parts."
-            : (root.dividerMode === "Analyse" ? "Enter Vin, R1 and R2." : "Enter Vin and the Vout you need.")
+          text: {
+            switch (root.tab) {
+              case "E-series": return "Type a value to see the nearest standard parts."
+              case "Divider": return root.dividerMode === "Analyse" ? "Enter Vin, R1 and R2." : "Enter Vin and the Vout you need."
+              case "Codes":
+                if (root.codesMode === "Value") return "Type a value to see its codes and bands."
+                return root.codesMode === "SMD code" ? "Type the code printed on the part." : "Click a band to change its colour."
+              case "LED / Ohm": return root.ledMode === "LED" ? "Enter the supply, the LED's Vf and the current." : "Enter any two of V, I, R and P."
+              default: return root.rclcMode === "RC" ? "Enter any two of R, C and the cutoff (or time constant)." : "Enter any two of L, C and the resonant frequency."
+            }
+          }
           color: root.cCyan
           opacity: 0.8
           font.family: root.fontFamily
@@ -1266,6 +1690,378 @@ Panel {
             color: root.bad
             font.family: root.fontFamily
             font.pixelSize: root.fs(Style.font.body)
+          }
+        }
+
+        // ---- Codes: value to codes and bands.
+        Column {
+          width: parent.width
+          spacing: root.sp(2)
+          visible: root.tab === "Codes" && root.codesMode === "Value" && root.result !== null && root.result.smd !== undefined
+          readonly property var smd: root.result && root.result.smd ? root.result.smd : ({})
+
+          Reading {
+            label: "Value"
+            value: root.result ? Model.text(root.result.value) : ""
+            valueColor: root.cGreen
+            strong: true
+            detail: root.result && root.result.series ? root.result.series + " value" : "not a standard value"
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "3-digit code"
+            value: parent.smd.three || "—"
+            valueColor: root.cYellow
+            detail: parent.smd.three ? "E24 parts, 2 % and 5 %" : "no 3-digit code for this value"
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "4-digit code"
+            value: parent.smd.four || "—"
+            valueColor: root.cYellow
+            detail: parent.smd.four ? "1 % and better" : "no 4-digit code for this value"
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "EIA-96 code"
+            value: parent.smd.eia96 || "—"
+            valueColor: root.cYellow
+            detail: parent.smd.eia96 ? "0603 parts, 1 % and better" : "E96 values, 1 Ω to 97.6 MΩ"
+            detailColor: root.cPurple
+          }
+
+          Item { width: 1; height: root.sp(8) }
+
+          PanelSectionHeader {
+            visible: root.result !== null && !!root.result.bands
+            fontSize: root.fs(Style.font.caption)
+            text: "COLOUR BANDS  " + (root.result ? root.result.tolerance : "")
+            foreground: root.cPink
+            fontFamily: root.fontFamily
+          }
+
+          Text {
+            visible: root.result !== null && root.result.smd !== undefined && !root.result.bands
+            width: parent.width
+            textFormat: Text.PlainText
+            text: "No colour bands for this value."
+            color: root.cCyan
+            opacity: 0.85
+            font.family: root.fontFamily
+            font.pixelSize: root.fs(Style.font.body)
+          }
+
+          BandResistor {
+            visible: root.result !== null && !!root.result.bands
+            anchors.horizontalCenter: parent.horizontalCenter
+            bands: root.result && root.result.bands ? root.result.bands : []
+          }
+
+          Text {
+            visible: root.result !== null && !!root.result.bands
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            textFormat: Text.PlainText
+            text: root.result && root.result.bands ? root.result.bands.join("  ") : ""
+            color: root.cCyan
+            font.family: root.fontFamily
+            font.pixelSize: root.fs(Style.font.body)
+          }
+
+          PartList {
+            title: "PART  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            block: root.result && root.result.parts ? root.result.parts : null
+          }
+        }
+
+        // ---- Codes: SMD code to value. A code can have more than one
+        //      reading ("10R"); each gets its own value and parts.
+        Column {
+          width: parent.width
+          spacing: root.sp(2)
+          visible: root.tab === "Codes" && root.codesMode === "SMD code" && root.result !== null && root.result.readings !== undefined
+
+          Text {
+            width: parent.width
+            visible: root.result !== null && !!root.result.readings && root.result.readings.length > 1
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: root.result && root.result.readings ? "This code reads " + root.result.readings.length + " ways. The part's datasheet or its size says which." : ""
+            color: root.caution
+            font.family: root.fontFamily
+            font.pixelSize: root.fs(Style.font.body)
+            bottomPadding: root.sp(6)
+          }
+
+          Repeater {
+            model: root.result && root.result.readings ? root.result.readings : []
+
+            Column {
+              id: readingBlock
+              required property var modelData
+              required property int index
+              width: parent.width
+              spacing: root.sp(2)
+
+              Reading {
+                label: readingBlock.modelData.scheme
+                value: Model.text(readingBlock.modelData.value)
+                valueColor: root.cGreen
+                strong: true
+                detail: readingBlock.modelData.series ? readingBlock.modelData.series + " value" : ""
+                detailColor: root.cPurple
+              }
+              Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignRight
+                textFormat: Text.PlainText
+                text: readingBlock.modelData.note
+                color: root.cCyan
+                opacity: 0.85
+                font.family: root.fontFamily
+                font.pixelSize: root.fs(Style.font.bodySmall)
+              }
+              PartList {
+                title: "PART  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+                block: readingBlock.modelData.parts ? readingBlock.modelData.parts : null
+              }
+              Item { width: 1; height: root.sp(8) }
+            }
+          }
+        }
+
+        // ---- Codes: colour bands to value.
+        Column {
+          width: parent.width
+          spacing: root.sp(2)
+          visible: root.tab === "Codes" && root.codesMode === "Bands" && root.result !== null && root.result.tolerancePct !== undefined
+
+          Reading {
+            label: "Value"
+            value: root.result ? Model.text(root.result.value) : ""
+            valueColor: root.cGreen
+            strong: true
+            detail: root.result && root.result.series ? root.result.series + " value" : "not a standard value"
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "Tolerance"
+            value: root.result ? "±" + root.result.tolerancePct + " %" : ""
+            valueColor: root.cYellow
+            detail: root.result ? Model.text(root.result.min) + " to " + Model.text(root.result.max) : ""
+            detailColor: root.cCyan
+          }
+          Reading {
+            visible: root.result !== null && typeof root.result.tcr === "number"
+            label: "Temperature coefficient"
+            value: root.result && typeof root.result.tcr === "number" ? "±" + root.result.tcr + " ppm/K" : ""
+            valueColor: root.cPurple
+          }
+
+          Item { width: 1; height: root.sp(6) }
+
+          PartList {
+            title: "PART  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            block: root.result && root.result.parts ? root.result.parts : null
+          }
+        }
+
+        // ---- LED series resistor.
+        Column {
+          width: parent.width
+          spacing: root.sp(2)
+          visible: root.tab === "LED / Ohm" && root.ledMode === "LED" && root.result !== null && root.result.up !== undefined
+          readonly property var up: root.result && root.result.up ? root.result.up : null
+          readonly property var down: root.result && root.result.down ? root.result.down : null
+
+          Reading {
+            label: "Exact resistor"
+            value: root.result ? Model.text(root.result.exact) : ""
+            valueColor: root.cPurple
+            detail: root.result ? Model.text(root.result.drop) + " across it" : ""
+            detailColor: root.cCyan
+          }
+          Reading {
+            label: "Use"
+            value: parent.up ? Model.text(parent.up.r) : ""
+            valueColor: root.cPink
+            strong: true
+            // No value below means the exact resistance is itself standard.
+            detail: root.result ? (parent.down === null ? root.result.series + " value" : "next " + root.result.series + " up") : ""
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "LED current"
+            value: parent.up ? Model.text(parent.up.current) : ""
+            valueColor: root.cGreen
+            detail: parent.up ? Model.pct(parent.up.currentErrorPct) : ""
+            detailColor: parent.up ? root.levelColor(parent.up.currentErrorPct) : root.fg
+          }
+          Reading {
+            label: "Resistor power"
+            value: parent.up && root.result ? root.loadText(parent.up.load, root.result.rating) : ""
+            valueColor: parent.up ? root.loadColor(parent.up.load.level) : root.cYellow
+          }
+          Reading {
+            label: "Power in each LED"
+            value: parent.up ? Model.text(parent.up.pLed) : ""
+            valueColor: root.cYellow
+          }
+          Reading {
+            label: "Total from the supply"
+            value: parent.up ? Model.text(parent.up.pTotal) : ""
+            valueColor: root.cYellow
+            detail: root.result && typeof root.result.efficiency === "number"
+              ? Math.round(root.result.efficiency) + " % in the LEDs" : ""
+            detailColor: root.cCyan
+          }
+          Reading {
+            visible: parent.down !== null
+            label: "Next value down"
+            value: parent.down ? Model.text(parent.down.r) : ""
+            valueColor: root.cPink
+            detail: parent.down ? Model.text(parent.down.current) + "  " + Model.pct(parent.down.currentErrorPct) : ""
+            detailColor: parent.down ? root.levelColor(parent.down.currentErrorPct) : root.fg
+          }
+
+          Item { width: 1; height: root.sp(6) }
+
+          PartList {
+            title: "R  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
+            seriesHint: root.seriesHint
+            block: root.result && root.result.parts ? root.result.parts : null
+          }
+        }
+
+        // ---- Ohm's law. The two you gave are plain; the two worked out
+        //      are bold.
+        Column {
+          width: parent.width
+          spacing: root.sp(2)
+          visible: root.tab === "LED / Ohm" && root.ledMode === "Ohm's law" && root.result !== null && root.result.given !== undefined
+          readonly property var given: root.result && root.result.given ? root.result.given : ({})
+
+          Reading {
+            label: "Voltage"
+            value: root.result && root.result.v ? Model.text(root.result.v) : ""
+            valueColor: parent.given.v ? root.fg : root.cYellow
+            strong: !parent.given.v
+            detail: parent.given.v ? "given" : ""
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "Current"
+            value: root.result && root.result.i ? Model.text(root.result.i) : ""
+            valueColor: parent.given.i ? root.fg : root.cCyan
+            strong: !parent.given.i
+            detail: parent.given.i ? "given" : ""
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "Resistance"
+            value: root.result && root.result.r ? Model.text(root.result.r) : ""
+            valueColor: parent.given.r ? root.fg : root.cPink
+            strong: !parent.given.r
+            detail: parent.given.r ? "given" : ""
+            detailColor: root.cPurple
+          }
+          Reading {
+            label: "Power"
+            value: root.result && root.result.p ? Model.text(root.result.p) : ""
+            valueColor: parent.given.p ? root.fg : root.cGreen
+            strong: !parent.given.p
+            detail: parent.given.p ? "given" : ""
+            detailColor: root.cPurple
+          }
+        }
+
+        // ---- RC.
+        Column {
+          width: parent.width
+          spacing: root.sp(2)
+          visible: root.tab === "RC / LC" && root.rclcMode === "RC" && root.result !== null && root.result.tau !== undefined
+          readonly property string solved: root.result && root.result.solved ? root.result.solved : ""
+
+          Reading {
+            label: "R"
+            value: root.result && root.result.r ? Model.text(root.result.r) : ""
+            valueColor: root.cPink
+            strong: parent.solved === "r"
+          }
+          Reading {
+            label: "C"
+            value: root.result && root.result.c ? Model.text(root.result.c) : ""
+            valueColor: root.cPurple
+            strong: parent.solved === "c"
+          }
+          Reading {
+            label: "Time constant RC"
+            value: root.result && root.result.tau ? Model.text(root.result.tau) : ""
+            valueColor: root.cYellow
+            strong: parent.solved === "f"
+            detail: "63 % of a step"
+            detailColor: root.cCyan
+          }
+          Reading {
+            label: "Settled"
+            value: root.result && root.result.settle ? Model.text(root.result.settle) : ""
+            valueColor: root.cYellow
+            detail: "5 RC, 99.3 %"
+            detailColor: root.cCyan
+          }
+          Reading {
+            label: "Cutoff"
+            value: root.result && root.result.fc ? Model.text(root.result.fc) : ""
+            valueColor: root.cGreen
+            strong: parent.solved === "f"
+            detail: "−3 dB, first order"
+            detailColor: root.cCyan
+          }
+
+          SuggestBlock {
+            suggestion: root.result && root.result.suggest ? root.result.suggest : null
+            part: parent.solved === "r" ? "R" : "C"
+            effect: suggestion ? "cutoff " + Model.text(suggestion.fc) : ""
+          }
+        }
+
+        // ---- LC.
+        Column {
+          width: parent.width
+          spacing: root.sp(2)
+          visible: root.tab === "RC / LC" && root.rclcMode === "LC" && root.result !== null && root.result.f0 !== undefined
+          readonly property string solved: root.result && root.result.solved ? root.result.solved : ""
+
+          Reading {
+            label: "L"
+            value: root.result && root.result.l ? Model.text(root.result.l) : ""
+            valueColor: root.cPink
+            strong: parent.solved === "l"
+          }
+          Reading {
+            label: "C"
+            value: root.result && root.result.c ? Model.text(root.result.c) : ""
+            valueColor: root.cPurple
+            strong: parent.solved === "c"
+          }
+          Reading {
+            label: "Resonance"
+            value: root.result && root.result.f0 ? Model.text(root.result.f0) : ""
+            valueColor: root.cGreen
+            strong: parent.solved === "f"
+          }
+          Reading {
+            label: "Characteristic impedance"
+            value: root.result && root.result.z0 ? Model.text(root.result.z0) : ""
+            valueColor: root.cYellow
+            detail: "√(L/C)"
+            detailColor: root.cCyan
+          }
+
+          SuggestBlock {
+            suggestion: root.result && root.result.suggest ? root.result.suggest : null
+            part: parent.solved === "l" ? "L" : "C"
+            effect: suggestion ? "resonance " + Model.text(suggestion.f0) : ""
           }
         }
 
