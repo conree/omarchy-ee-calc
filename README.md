@@ -2,7 +2,7 @@
 
 An electronics bench calculator for the Omarchy Quattro bar.
 
-![EE Calc: E-series, divider analysis and divider design panels](preview.png)
+![EE Calc: the E-series tab, colour bands on the Codes tab, and a loaded divider](preview.png)
 
 - **E-series:** type a resistance and see the nearest E3, E6, E12, E24,
   E48, E96 and E192 values, the values either side, and the error of each.
@@ -38,6 +38,8 @@ section for the screen you are on.
 
 ## Updates
 
+- **v0.3.1:** new screenshots of every screen, and a clearer description
+  of the Tolerance setting. No change to the calculator.
 - **v0.3.0:** E192, 0.1 % and 0.5 % parts, marking codes and colour
   bands, LED resistor and Ohm's law, RC and LC. See below.
 - **v0.2.6:** the panel header shows the installed version next to the
@@ -127,9 +129,43 @@ ranked by error, with part numbers for the best pair.
 
 ![Divider design panel](docs/screenshots/divider-find-values.png)
 
-**Through-hole:** ¼ W and ½ W metal-film parts, here a 4.7 kΩ 5 % resistor.
+**Through-hole:** ¼ W and ½ W metal-film parts, here a 4.7 kΩ 1 % resistor.
 
 ![Through-hole part](docs/screenshots/through-hole.png)
+
+**0.1 % thin film:** an E192 value with Yageo RT, Vishay TNPW and Panasonic
+ERA part numbers.
+
+![E-series at 0.1 %](docs/screenshots/e-series-thin-film.png)
+
+**Codes, Value:** the SMD codes and colour bands for a value.
+
+![Codes, Value](docs/screenshots/codes-value.png)
+
+**Codes, SMD code:** `10R` reads two ways, and each reading gets its own
+part list.
+
+![Codes, SMD code](docs/screenshots/codes-smd.png)
+
+**Codes, Bands:** click a band, then pick its colour. Each band offers only
+the colours allowed in its place.
+
+![Codes, Bands](docs/screenshots/codes-bands.png)
+
+**LED:** three LEDs in series from 12 V at 20 mA, with the next standard
+resistor up and down.
+
+![LED series resistor](docs/screenshots/led.png)
+
+**Ohm's law:** the two values worked out are in bold.
+
+![Ohm's law](docs/screenshots/ohm.png)
+
+**RC and LC:** the worked-out capacitor, with the nearest E12 part.
+
+![RC](docs/screenshots/rc.png)
+
+![LC](docs/screenshots/lc.png)
 
 Shown with the Dracula Pro Van Helsing theme and the Comic Code Ligatures
 font. The panel takes its colours from whichever Omarchy theme is active.
