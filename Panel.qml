@@ -429,6 +429,26 @@ Panel {
   }
 
   Process { id: copier; running: false }
+
+  // ---- The ? button: the manual section for this screen, in the browser.
+  function currentMode() {
+    switch (tab) {
+      case "Divider": return dividerMode
+      case "Codes": return codesMode
+      case "LED / Ohm": return ledMode
+      case "RC / LC": return rclcMode
+      default: return ""
+    }
+  }
+
+  function openManual() {
+    if (opener.running) return
+    opener.command = ["xdg-open", Model.manualUrl(version, tab, currentMode())]
+    opener.running = true
+    root.close()
+  }
+
+  Process { id: opener; running: false }
   Timer { id: copiedReset; interval: 1500; onTriggered: root.copiedMpn = "" }
 
   // 5 % parts exist only in E24 values, so an E48/E96/E192 result at 5 %
@@ -886,6 +906,32 @@ Panel {
             }
           }
 
+          // Help for the screen you're on.
+          Rectangle {
+            id: helpButton
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.sp(24)
+            height: root.sp(24)
+            radius: width / 2
+            color: "transparent"
+            border.width: 1
+            border.color: helpHover.hovered ? root.cCyan : Qt.rgba(root.fg.r, root.fg.g, root.fg.b, 0.4)
+
+            Text {
+              anchors.centerIn: parent
+              text: "?"
+              textFormat: Text.PlainText
+              color: helpHover.hovered ? root.cCyan : root.fg
+              opacity: helpHover.hovered ? 1 : 0.7
+              font.family: root.fontFamily
+              font.pixelSize: root.fs(Style.font.body)
+              font.weight: Font.Bold
+            }
+
+            HoverHandler { id: helpHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: root.openManual() }
+          }
         }
 
         ButtonGroup {

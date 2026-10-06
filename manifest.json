@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "conree.ee-calc",
   "name": "EE Calc",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "author": "conree",
   "license": "MIT",
-  "description": "Electronics bench calculator in the bar: nearest E-series value with two-resistor combinations, and voltage divider analysis and design from standard values.",
+  "description": "Electronics bench calculator in the bar: nearest E-series values with part numbers, voltage dividers, SMD codes and colour bands, LED resistors, Ohm's law, and RC and LC.",
   "kinds": [
     "bar-widget"
   ],
@@ -14,14 +14,21 @@
   },
   "barWidget": {
     "displayName": "EE Calc",
-    "description": "Nearest E-series values and voltage divider design",
+    "description": "E-series values, dividers, resistor codes, LED, Ohm's law, RC and LC",
     "category": "Productivity",
     "aliases": [
       "resistor",
       "e-series",
       "e24",
       "e96",
+      "e192",
       "divider",
+      "smd-code",
+      "colour-code",
+      "led",
+      "ohm",
+      "rc",
+      "lc",
       "electronics",
       "calculator"
     ],

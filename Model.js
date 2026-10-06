@@ -94,6 +94,29 @@ function changeBandCount(bands, count) {
   return b
 }
 
+// ---- The ? button. Each screen opens its own section of the user manual
+// on GitHub, at the release tag of the installed version, so the manual
+// matches the plugin. Anchors are GitHub's heading slugs.
+var MANUAL_BASE = "https://github.com/conree/omarchy-ee-calc/blob/"
+var MANUAL_SECTIONS = {
+  "E-series": "6-the-e-series-tab",
+  "Divider/Analyse": "7-divider-analyse",
+  "Divider/Find values": "8-divider-find-values",
+  "Codes/Value": "value",
+  "Codes/SMD code": "smd-code",
+  "Codes/Bands": "bands",
+  "LED / Ohm/LED": "led",
+  "LED / Ohm/Ohm's law": "ohms-law",
+  "RC / LC/RC": "rc",
+  "RC / LC/LC": "lc"
+}
+
+function manualUrl(version, tab, mode) {
+  var ref = version ? "v" + version : "main"
+  var anchor = MANUAL_SECTIONS[tab + "/" + mode] || MANUAL_SECTIONS[tab] || ""
+  return MANUAL_BASE + ref + "/docs/USER_MANUAL.md" + (anchor ? "#" + anchor : "")
+}
+
 // Local path of a file bundled with the plugin. The shell hands entry points
 // percent-encoded file URLs, so a plain "file://" strip breaks on spaces.
 function localPath(url) {

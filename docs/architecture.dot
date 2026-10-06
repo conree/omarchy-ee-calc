@@ -2,9 +2,8 @@
 //   dot -Tpng -Gdpi=144 docs/architecture.dot -o docs/architecture.png
 // Published as a PNG, not an outlined SVG: the Comic Code licence does not
 // allow distributing its glyph outlines in a reusable form.
-// Colours are the Dracula Pro Van Helsing palette; grey dashed boxes are
-// planned, not built. Every label is a table so multi-line text keeps its
-// line spacing.
+// Colours are the Dracula Pro Van Helsing palette. Every label is a table
+// so multi-line text keeps its line spacing.
 
 digraph eecalc {
   graph [rankdir=TB, bgcolor="#0B0D0F", fontname="Comic Code Ligatures", fontcolor="#F8F8F2",
@@ -15,8 +14,7 @@ digraph eecalc {
          fontcolor="#80FFEA", fontsize=11]
 
   label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#FF80BF"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#9580FF"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#F8F8F2">   architecture, v0.2.6</FONT></TD></TR>
-    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#708CA9">grey dashed boxes are planned features</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#FF80BF"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#9580FF"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#F8F8F2">   architecture, v0.3.0</FONT></TD></TR>
   </TABLE>>
   labelloc=t; labeljust=l
 
@@ -34,6 +32,8 @@ digraph eecalc {
       <TR><TD ALIGN="LEFT"><B>Panel.qml</B></TD></TR>
       <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">E-series tab</FONT></TD></TR>
       <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">Divider tab: Analyse + live schematic, Find values</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">Codes tab: SMD codes, clickable colour bands</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">LED / Ohm tab, RC / LC tab</FONT></TD></TR>
       <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#8AFF80">package and tolerance selectors</FONT></TD></TR>
       <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FFFF80">part lists, click to copy</FONT></TD></TR>
       <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#80FFEA">power check against package rating</FONT></TD></TR></TABLE>>]
@@ -71,7 +71,8 @@ digraph eecalc {
     main [color="#8AFF80", label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>main.zig</B></TD></TR>
       <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">commands: eseries, divider,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">divider-solve, parts</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">divider-solve, parts, codes,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">marking, bands, led, ohm, rc, lc</FONT></TD></TR></TABLE>>]
 
     units [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>units.zig</B></TD></TR>
@@ -79,7 +80,7 @@ digraph eecalc {
       <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">in and out</FONT></TD></TR></TABLE>>]
     eseries [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>eseries.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">IEC 60063 E3 to E96,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">IEC 60063 E3 to E192,</FONT></TD></TR>
       <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">nearest value, best pair</FONT></TD></TR></TABLE>>]
     divider [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>divider.zig</B></TD></TR>
@@ -88,45 +89,32 @@ digraph eecalc {
       <TR><TD><B>parts.zig</B></TD></TR>
       <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">package ratings, part numbers:</FONT></TD></TR>
       <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Yageo RC, Vishay CRCW,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Panasonic ERJ, Yageo MFR</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Panasonic ERJ, Yageo MFR;</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">thin film: Yageo RT,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Vishay TNPW, Panasonic ERA</FONT></TD></TR></TABLE>>]
 
-    { rank=same; units; eseries; divider; parts }
+    codes [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>codes.zig</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">SMD 3/4-digit, EIA-96,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">IEC 60062 colour bands,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">both ways</FONT></TD></TR></TABLE>>]
+    circuits [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+      <TR><TD><B>circuits.zig</B></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">LED resistor, Ohm's law,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">RC, LC resonance</FONT></TD></TR></TABLE>>]
+
+    { rank=same; units; eseries; divider; parts; codes; circuits }
     main -> units
     main -> eseries
     main -> divider
     main -> parts
-
-    // ---- Planned --------------------------------------------------------
-    subgraph cluster_planned {
-      label=<<FONT COLOR="#6B7785" POINT-SIZE="12">planned</FONT>>
-      labeljust=l; style="rounded,dashed"; color="#2A3138"; penwidth=1.0; margin=12
-      node [style="rounded,filled,dashed", fillcolor="#101316", color="#414D58", fontcolor="#6B7785"]
-      p_e192 [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-        <TR><TD><B>E192 series</B></TD></TR>
-        <TR><TD><FONT POINT-SIZE="11">0.1 % to 0.5 % values</FONT></TD></TR></TABLE>>]
-      p_marking [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-        <TR><TD><B>Marking codes</B></TD></TR>
-        <TR><TD><FONT POINT-SIZE="11">SMT 3/4-digit, EIA-96,</FONT></TD></TR>
-        <TR><TD><FONT POINT-SIZE="11">colour bands, both ways</FONT></TD></TR></TABLE>>]
-      p_led [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-        <TR><TD><B>LED resistor, Ohm's law</B></TD></TR>
-        <TR><TD><FONT POINT-SIZE="11">series resistor, V/I/R/P</FONT></TD></TR></TABLE>>]
-      p_rc [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-        <TR><TD><B>RC / LC</B></TD></TR>
-        <TR><TD><FONT POINT-SIZE="11">time constant, cutoff,</FONT></TD></TR>
-        <TR><TD><FONT POINT-SIZE="11">resonance</FONT></TD></TR></TABLE>>]
-      { rank=same; p_e192; p_marking; p_led; p_rc }
-    }
-    // Invisible edges stack the planned row under the built modules.
-    units -> p_e192 [style=invis]
-    eseries -> p_marking [style=invis]
-    divider -> p_led [style=invis]
-    parts -> p_rc [style=invis]
+    main -> codes
+    main -> circuits
   }
 
-  // ---- Copyright, bottom right: hung below the rightmost planned box -------
+  // ---- Copyright, bottom right: hung below the rightmost module -----------
   copyright [shape=plaintext, style="", label=<<FONT POINT-SIZE="11" COLOR="#6B7785">© 2026 conree</FONT>>]
-  p_rc -> copyright [style=invis]
+  circuits -> copyright [style=invis]
 
   // ---- Panel <-> engine -----------------------------------------------------
   panel -> main [label=<  runs on each change<BR/>  (argv only, no shell)  >, color="#9580FF", penwidth=1.8]
