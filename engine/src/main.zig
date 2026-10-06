@@ -19,7 +19,7 @@ const eseries = @import("eseries.zig");
 const divider = @import("divider.zig");
 const parts = @import("parts.zig");
 
-const version = "0.2.5";
+const version = "0.2.6";
 // Greek capital omega rather than U+2126 OHM SIGN: far more fonts carry it.
 const ohm = "\u{03A9}";
 
