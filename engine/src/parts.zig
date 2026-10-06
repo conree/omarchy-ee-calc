@@ -7,6 +7,10 @@
 //!   Panasonic ERJ ±1 % precision thick film, AOA0000C304, 2025-05-29
 //!   Panasonic ERJ ±5 % thick film, AOA0000C301, 2022-12-22
 //!   Yageo MFR metal film through hole, "YAGEO-MFR_DATASHEET" V.4, 2024-04-03
+//! Precision thin film, 0.5 % and 0.1 % (checked 2026-10-05):
+//!   Yageo RT thin film chip, "PYu-RT_1-to-0.01_RoHS_L" V.17, 2026-02-12
+//!   Vishay TNPW e3 thin film chip, doc. 28758, rev. 2026-04-10
+//!   Panasonic ERA A type thin film chip, AOA0000C307, 2024-04-24
 
 const std = @import("std");
 const units = @import("units.zig");
@@ -58,17 +62,45 @@ pub const Package = enum {
 };
 
 pub const Tolerance = enum {
+    tenth,
+    half,
     one,
     five,
 
     pub fn name(self: Tolerance) []const u8 {
-        return if (self == .one) "1%" else "5%";
+        return switch (self) {
+            .tenth => "0.1%",
+            .half => "0.5%",
+            .one => "1%",
+            .five => "5%",
+        };
     }
 
     pub fn parse(text: []const u8) ?Tolerance {
-        if (std.mem.eql(u8, text, "1") or std.mem.eql(u8, text, "1%")) return .one;
-        if (std.mem.eql(u8, text, "5") or std.mem.eql(u8, text, "5%")) return .five;
+        const table = .{
+            .{ "0.1", Tolerance.tenth }, .{ "0.5", Tolerance.half },
+            .{ "1", Tolerance.one },     .{ "5", Tolerance.five },
+        };
+        const t = if (std.mem.endsWith(u8, text, "%")) text[0 .. text.len - 1] else text;
+        inline for (table) |entry| {
+            if (std.mem.eql(u8, t, entry[0])) return entry[1];
+        }
         return null;
+    }
+
+    /// 0.5 % and 0.1 % are thin film parts with their own makers' series.
+    pub fn precision(self: Tolerance) bool {
+        return self == .tenth or self == .half;
+    }
+
+    /// The tolerance letter Yageo, Vishay and Panasonic share (IEC 60062).
+    fn letter(self: Tolerance) u8 {
+        return switch (self) {
+            .tenth => 'B',
+            .half => 'D',
+            .one => 'F',
+            .five => 'J',
+        };
     }
 };
 
@@ -166,9 +198,19 @@ pub fn panasonic3(buf: []u8, value: f64) []const u8 {
 // ---- Availability ---------------------------------------------------------
 
 /// 5 % parts are E24 only; 1 % parts come in every E24 and E96 value.
+/// At 0.5 % and 0.1 % Vishay TNPW also makes every E192 value; Yageo RT
+/// and Panasonic ERA list E24 and E96 only (E192 "on request").
 pub fn offered(value: f64, tolerance: Tolerance) bool {
     if (eseries.nearest(.e24, value).exact) return true;
-    return tolerance == .one and eseries.nearest(.e96, value).exact;
+    return switch (tolerance) {
+        .five => false,
+        .one => eseries.nearest(.e96, value).exact,
+        .half, .tenth => eseries.nearest(.e192, value).exact,
+    };
+}
+
+fn e24OrE96(value: f64) bool {
+    return eseries.nearest(.e24, value).exact or eseries.nearest(.e96, value).exact;
 }
 
 fn within(value: f64, lo: f64, hi: f64) bool {
@@ -184,11 +226,13 @@ pub const max_parts = 3;
 /// at this tolerance, returns no parts and a note saying why.
 pub fn lookup(storage: *[max_parts][40]u8, out: *[max_parts]Part, value: f64, package: Package, tolerance: Tolerance) Result {
     if (!offered(value, tolerance)) {
-        return .{ .parts = out[0..0], .note = if (tolerance == .five)
-            "not made at 5 % (E24 values only)"
-        else
-            "not a standard E24 or E96 value" };
+        return .{ .parts = out[0..0], .note = switch (tolerance) {
+            .five => "not made at 5 % (E24 values only)",
+            .one => "not a standard E24 or E96 value",
+            .half, .tenth => "not a standard E24 or E192 value",
+        } };
     }
+    if (tolerance.precision()) return precisionLookup(storage, out, value, package, tolerance);
 
     var n: usize = 0;
     var code: [16]u8 = undefined;
@@ -277,6 +321,100 @@ pub fn lookup(storage: *[max_parts][40]u8, out: *[max_parts]Part, value: f64, pa
             return .{ .parts = out[0..1] };
         },
     }
+}
+
+/// 0.5 % and 0.1 % thin film chips, all at ±25 ppm/K where the maker
+/// offers it, since that is the line each maker stocks for these tolerances.
+fn precisionLookup(storage: *[max_parts][40]u8, out: *[max_parts]Part, value: f64, package: Package, tolerance: Tolerance) Result {
+    if (package == .tht_quarter or package == .tht_half)
+        return .{ .parts = out[0..0], .note = "no through-hole part at this tolerance" };
+
+    var n: usize = 0;
+    var code: [16]u8 = undefined;
+    const size = package.name();
+    const tol = tolerance.letter();
+
+    // Yageo RT: RT0603BRD0710KL. D = ±25 ppm/K, 07 = 7" reel. E24/E96
+    // values only; the ±25 ppm ranges are the same at 0.5 % and 0.1 %.
+    if (e24OrE96(value)) {
+        const lo: f64, const hi: f64 = switch (package) {
+            .p0402 => .{ 4.7, 240e3 },
+            .p0603 => .{ 1, 1e6 },
+            else => .{ 1, 1.5e6 },
+        };
+        if (within(value, lo, hi)) {
+            const s = std.fmt.bufPrint(&storage[n], "RT{s}{c}RD07{s}L", .{ size, tol, yageoCode(&code, value) }) catch unreachable;
+            out[n] = .{ .maker = "Yageo", .family = "RT 25 ppm", .mpn = s, .power = package.rating() };
+            n += 1;
+        }
+    }
+
+    // Vishay TNPW e3: TNPW06034K99BEEA. E = ±25 ppm/K; EA reel, ED for
+    // 0402. E24 and E192 values. Power is the "general" operation mode.
+    {
+        const lo: f64 = switch (package) {
+            .p0402 => if (tolerance == .tenth) 47 else 10,
+            else => if (tolerance == .tenth) 3.5 else 1,
+        };
+        const hi: f64 = switch (package) {
+            .p0402 => 100e3,
+            .p0603 => 332e3,
+            .p0805 => 1e6,
+            else => 2e6,
+        };
+        if (within(value, lo, hi)) {
+            const pack: []const u8 = if (package == .p0402) "ED" else "EA";
+            const s = std.fmt.bufPrint(&storage[n], "TNPW{s}{s}{c}E{s}", .{ size, vishayCode(&code, value), tol, pack }) catch unreachable;
+            const p: f64 = switch (package) {
+                .p0402 => 0.07,
+                .p0603 => 0.11,
+                .p0805 => 0.14,
+                else => 0.27,
+            };
+            out[n] = .{ .maker = "Vishay", .family = "TNPW e3 25 ppm", .mpn = s, .power = p };
+            n += 1;
+        }
+    }
+
+    // Panasonic ERA A type: ERA3AEB102V (E24, three figures), ERA3AEB1051V
+    // (E96, four). E = ±25 ppm/K from 47 Ω; below that only 0.5 % exists,
+    // at ±50 ppm/K (H), or ±100 ppm/K (K) in 0402. X = 0402 reel, else V.
+    if (e24OrE96(value)) {
+        const hi: f64 = switch (package) {
+            .p0402 => 100e3,
+            .p0603 => 330e3,
+            else => 1e6,
+        };
+        const tcr: ?u8 = if (within(value, 47, hi))
+            'E'
+        else if (tolerance == .half and within(value, 10, 46.4))
+            (if (package == .p0402) 'K' else 'H')
+        else
+            null;
+        if (tcr) |t| {
+            const sz: u8 = switch (package) {
+                .p0402 => '2',
+                .p0603 => '3',
+                .p0805 => '6',
+                else => '8',
+            };
+            const v = if (eseries.nearest(.e24, value).exact) panasonic3(&code, value) else panasonic4(&code, value);
+            const pack: u8 = if (package == .p0402) 'X' else 'V';
+            const s = std.fmt.bufPrint(&storage[n], "ERA{c}A{c}{c}{s}{c}", .{ sz, t, tol, v, pack }) catch unreachable;
+            const family: []const u8 = switch (t) {
+                'E' => "ERA 25 ppm",
+                'H' => "ERA 50 ppm",
+                else => "ERA 100 ppm",
+            };
+            // ERA ratings (datasheet): 0.063 / 0.1 / 0.125 / 0.25 W.
+            const p: f64 = if (package == .p0402) 0.063 else package.rating();
+            out[n] = .{ .maker = "Panasonic", .family = family, .mpn = s, .power = p };
+            n += 1;
+        }
+    }
+
+    if (n == 0) return .{ .parts = out[0..0], .note = "outside every maker's range for this size" };
+    return .{ .parts = out[0..n] };
 }
 
 fn panasonicPower(package: Package) f64 {
@@ -368,6 +506,42 @@ test "availability" {
     // Panasonic 1206 is flagged as not for new designs.
     const r = lookup(&storage, &out, 10e3, .p1206, .one);
     for (r.parts) |p| if (std.mem.eql(u8, p.maker, "Panasonic")) try testing.expect(p.nrfnd);
+}
+
+test "precision parts match live catalogue numbers" {
+    // Each checked against a distributor listing, 2026-10-05.
+    try expectMpn(10e3, .p0603, .tenth, "Yageo", "RT0603BRD0710KL");
+    try expectMpn(10e3, .p0603, .half, "Yageo", "RT0603DRD0710KL");
+    try expectMpn(10e3, .p0603, .tenth, "Vishay", "TNPW060310K0BEEA");
+    try expectMpn(10e3, .p0603, .half, "Vishay", "TNPW060310K0DEEA");
+    try expectMpn(1010, .p0402, .tenth, "Vishay", "TNPW04021K01BEED");
+    try expectMpn(10e3, .p0603, .tenth, "Panasonic", "ERA3AEB103V");
+    try expectMpn(10e3, .p0603, .half, "Panasonic", "ERA3AED103V");
+    try expectMpn(1050, .p0603, .tenth, "Panasonic", "ERA3AEB1051V");
+}
+
+test "precision examples printed in the datasheets" {
+    // Vishay part number example: TNPW12061K32DEEA (1.32 kΩ, 0.5 %, 25 ppm).
+    try expectMpn(1320, .p1206, .half, "Vishay", "TNPW12061K32DEEA");
+    // Panasonic E24 example layout ERA3AEB102V (1 kΩ).
+    try expectMpn(1e3, .p0603, .tenth, "Panasonic", "ERA3AEB102V");
+}
+
+test "precision availability" {
+    var storage: [max_parts][40]u8 = undefined;
+    var out: [max_parts]Part = undefined;
+    // E192-only value: Vishay alone.
+    const r = lookup(&storage, &out, 1010, .p0603, .tenth);
+    try testing.expectEqual(@as(usize, 1), r.parts.len);
+    try testing.expectEqualStrings("Vishay", r.parts[0].maker);
+    // Not a standard value at all.
+    try testing.expectEqual(@as(usize, 0), lookup(&storage, &out, 1234, .p0603, .tenth).parts.len);
+    // No through-hole precision part.
+    try testing.expectEqual(@as(usize, 0), lookup(&storage, &out, 10e3, .tht_quarter, .tenth).parts.len);
+    // 22 Ω at 0.5 %: Panasonic switches to ±50 ppm/K.
+    try expectMpn(22, .p0603, .half, "Panasonic", "ERA3AHD220V");
+    // ... and has nothing at 0.1 %.
+    for (lookup(&storage, &out, 22, .p0603, .tenth).parts) |p| try testing.expect(!std.mem.eql(u8, p.maker, "Panasonic"));
 }
 
 test "load levels" {

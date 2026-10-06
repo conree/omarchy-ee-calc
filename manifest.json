@@ -45,7 +45,8 @@
           "E12",
           "E24",
           "E48",
-          "E96"
+          "E96",
+          "E192"
         ],
         "defaultValue": "E24",
         "description": "Series used for two-resistor combinations and divider design."
@@ -56,7 +57,10 @@
         "label": "Opens on",
         "options": [
           "E-series",
-          "Divider"
+          "Divider",
+          "Codes",
+          "LED / Ohm",
+          "RC / LC"
         ],
         "defaultValue": "E-series",
         "description": "The calculator the panel opens on. Updated to the last one you used."
@@ -81,6 +85,8 @@
         "type": "enum",
         "label": "Tolerance",
         "options": [
+          "0.1",
+          "0.5",
           "1",
           "5"
         ],

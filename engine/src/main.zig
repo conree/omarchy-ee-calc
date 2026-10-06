@@ -9,6 +9,14 @@
 //!   ee-calc parts <value> [--package 0603] [--tolerance 1]
 //!   (eseries, divider and divider-solve also take --package and
 //!    --tolerance, and then add part numbers and power checks)
+//!   ee-calc codes <value>          SMD codes and colour bands for a value
+//!   ee-calc marking <code>         value(s) an SMD code can mean
+//!   ee-calc bands <c1,c2,c3,c4[,c5[,c6]]>
+//!   (codes, marking and bands take --package and --tolerance too)
+//!   ee-calc led --vs <V> --vf <V> --if <A> [--count 1] [--series E24]
+//!   ee-calc ohm  (any two of) --v <V> --i <A> --r <R> --p <W>
+//!   ee-calc rc   (any two of) --r <R> --c <F> --f <Hz> | --tau <s>  [--series E24]
+//!   ee-calc lc   (any two of) --l <H> --c <F> --f <Hz>
 //!   ee-calc parse <text>
 //!   ee-calc version
 
@@ -18,6 +26,8 @@ const units = @import("units.zig");
 const eseries = @import("eseries.zig");
 const divider = @import("divider.zig");
 const parts = @import("parts.zig");
+const codes = @import("codes.zig");
+const circuits = @import("circuits.zig");
 
 const version = "0.2.6";
 // Greek capital omega rather than U+2126 OHM SIGN: far more fonts carry it.
@@ -27,8 +37,16 @@ const usage_text =
     \\ee-calc eseries <value> [--series E24]
     \\ee-calc divider --vin <V> --r1 <R> --r2 <R> [--rl <R>]
     \\ee-calc divider-solve --vin <V> --vout <V> [--series E24] [--rmin 10k] [--rmax 1M] [--rl <R>] [--count 5]
-    \\ee-calc parts <value> [--package 0603|0402|0805|1206|tht-quarter|tht-half] [--tolerance 1|5]
+    \\ee-calc parts <value> [--package 0603|0402|0805|1206|tht-quarter|tht-half] [--tolerance 0.1|0.5|1|5]
     \\  eseries, divider and divider-solve also accept --package and --tolerance
+    \\ee-calc codes <value>
+    \\ee-calc marking <code>
+    \\ee-calc bands <c1,c2,c3,c4[,c5[,c6]]>
+    \\  codes, marking and bands also accept --package and --tolerance
+    \\ee-calc led --vs <V> --vf <V> --if <A> [--count 1] [--series E24] [--package ..] [--tolerance ..]
+    \\ee-calc ohm (any two of) --v <V> --i <A> --r <R> --p <W>
+    \\ee-calc rc (any two of) --r <R> --c <F> --f <Hz>|--tau <s> [--series E24]
+    \\ee-calc lc (any two of) --l <H> --c <F> --f <Hz>
     \\ee-calc parse <text>
     \\ee-calc version
 ;
@@ -82,6 +100,20 @@ fn run(arena: std.mem.Allocator, args: []const [:0]const u8, out: *Io.Writer, me
         try cmdDivider(rest, out, message);
     } else if (std.mem.eql(u8, cmd, "divider-solve")) {
         try cmdSolve(arena, rest, out, message);
+    } else if (std.mem.eql(u8, cmd, "codes")) {
+        try cmdCodes(rest, out, message);
+    } else if (std.mem.eql(u8, cmd, "marking")) {
+        try cmdMarking(rest, out, message);
+    } else if (std.mem.eql(u8, cmd, "bands")) {
+        try cmdBands(arena, rest, out, message);
+    } else if (std.mem.eql(u8, cmd, "led")) {
+        try cmdLed(rest, out, message);
+    } else if (std.mem.eql(u8, cmd, "ohm")) {
+        try cmdOhm(rest, out, message);
+    } else if (std.mem.eql(u8, cmd, "rc")) {
+        try cmdRc(rest, out, message);
+    } else if (std.mem.eql(u8, cmd, "lc")) {
+        try cmdLc(rest, out, message);
     } else {
         return usage(message, "unknown command");
     }
@@ -147,7 +179,7 @@ fn requirePositive(v: ?f64, message: *[]const u8, missing: []const u8, bad: []co
 
 fn seriesOption(o: *const Options, message: *[]const u8) Failure!eseries.Series {
     const text = o.get("series") orelse return .e24;
-    return eseries.Series.parse(text) orelse usage(message, "series must be E3, E6, E12, E24, E48 or E96");
+    return eseries.Series.parse(text) orelse usage(message, "series must be E3, E6, E12, E24, E48, E96 or E192");
 }
 
 /// Package and tolerance for part numbers and power checks. Absent when
@@ -164,7 +196,7 @@ fn selectionOption(o: *const Options, message: *[]const u8) Failure!?Selection {
         else
             .p0603,
         .tolerance = if (ttext) |t| parts.Tolerance.parse(t) orelse
-            return usage(message, "tolerance must be 1 or 5")
+            return usage(message, "tolerance must be 0.1, 0.5, 1 or 5")
         else
             .one,
     };
@@ -358,6 +390,302 @@ fn cmdSolve(arena: std.mem.Allocator, rest: []const [:0]const u8, out: *Io.Write
     try out.writeAll("}\n");
 }
 
+fn selectionOrDefault(o: *const Options, message: *[]const u8) Failure!Selection {
+    return (try selectionOption(o, message)) orelse Selection{ .package = .p0603, .tolerance = .one };
+}
+
+fn positiveIn(o: *const Options, key: []const u8, message: *[]const u8, what: []const u8) Failure!?f64 {
+    const v = try number(o, key, message, what);
+    if (v) |x| if (!(x > 0)) {
+        message.* = what;
+        return error.Usage;
+    };
+    return v;
+}
+
+fn writeSeriesOf(out: *Io.Writer, value: f64) Io.Writer.Error!void {
+    if (codes.seriesOf(value)) |s| try out.print("\"{s}\"", .{s.name()}) else try out.writeAll("null");
+}
+
+fn writeOptString(out: *Io.Writer, s: ?[]const u8) Io.Writer.Error!void {
+    if (s) |t| try writeString(out, t) else try out.writeAll("null");
+}
+
+fn writeColours(out: *Io.Writer, bands: []const codes.Colour) Io.Writer.Error!void {
+    try out.writeAll("[");
+    for (bands, 0..) |b, i| {
+        if (i > 0) try out.writeAll(",");
+        try out.print("\"{s}\"", .{@tagName(b)});
+    }
+    try out.writeAll("]");
+}
+
+fn tolerancePercent(t: parts.Tolerance) f64 {
+    return switch (t) {
+        .tenth => 0.1,
+        .half => 0.5,
+        .one => 1,
+        .five => 5,
+    };
+}
+
+fn cmdCodes(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "package", "tolerance" }, message);
+    const text = o.positional orelse return usage(message, "enter a value");
+    const value = units.parse(text) catch return usage(message, "not a number");
+    if (!(value > 0)) return usage(message, "value must be above zero");
+    if (value < 1e-3 or value > 1e11) return usage(message, "value must be between 1 m and 100 G");
+    const sel = try selectionOrDefault(&o, message);
+
+    var b3: [16]u8 = undefined;
+    var b4: [16]u8 = undefined;
+    var be: [16]u8 = undefined;
+    try out.writeAll("{\"ok\":true,\"value\":");
+    try writeQuantity(out, value, 4, ohm);
+    try out.writeAll(",\"series\":");
+    try writeSeriesOf(out, value);
+    try out.writeAll(",\"smd\":{\"three\":");
+    try writeOptString(out, codes.threeDigit(&b3, value));
+    try out.writeAll(",\"four\":");
+    try writeOptString(out, codes.fourDigit(&b4, value));
+    try out.writeAll(",\"eia96\":");
+    try writeOptString(out, codes.eia96(&be, value));
+    try out.writeAll("},\"bands\":");
+    var bands: [5]codes.Colour = undefined;
+    const tol_colour = codes.toleranceColour(tolerancePercent(sel.tolerance)).?;
+    if (codes.encodeBands(&bands, value, tol_colour)) |bs| try writeColours(out, bs) else try out.writeAll("null");
+    try writeSelection(out, sel);
+    try out.writeAll(",\"parts\":");
+    try writeParts(out, value, sel);
+    try out.writeAll("}\n");
+}
+
+fn cmdMarking(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "package", "tolerance" }, message);
+    const text = o.positional orelse return usage(message, "enter a code");
+    const sel = try selectionOrDefault(&o, message);
+    var readings: [codes.max_readings]codes.Reading = undefined;
+    const got = codes.decode(text, &readings);
+    if (got.len == 0) return usage(message, "not a resistor marking code");
+
+    try out.writeAll("{\"ok\":true,\"code\":");
+    try writeString(out, text);
+    try writeSelection(out, sel);
+    try out.writeAll(",\"readings\":[");
+    for (got, 0..) |r, i| {
+        if (i > 0) try out.writeAll(",");
+        try out.writeAll("{\"scheme\":");
+        try writeString(out, r.scheme);
+        try out.writeAll(",\"note\":");
+        try writeString(out, r.note);
+        try out.writeAll(",\"value\":");
+        try writeQuantity(out, r.value, 4, ohm);
+        if (r.value > 0) {
+            try out.writeAll(",\"series\":");
+            try writeSeriesOf(out, r.value);
+            try out.writeAll(",\"parts\":");
+            try writeParts(out, r.value, sel);
+        }
+        try out.writeAll("}");
+    }
+    try out.writeAll("]}\n");
+}
+
+fn cmdBands(arena: std.mem.Allocator, rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "package", "tolerance" }, message);
+    const text = o.positional orelse return usage(message, "enter the colours");
+    const sel = try selectionOrDefault(&o, message);
+
+    var bands: [6]codes.Colour = undefined;
+    var n: usize = 0;
+    var it = std.mem.tokenizeAny(u8, text, ", ");
+    while (it.next()) |word| {
+        if (n == bands.len) return usage(message, "colour bands come in 4, 5 or 6");
+        bands[n] = codes.Colour.parse(word) orelse {
+            message.* = try std.fmt.allocPrint(arena, "'{s}' is not a band colour", .{word});
+            return error.Usage;
+        };
+        n += 1;
+    }
+    const v = codes.decodeBands(bands[0..n]) catch |err| {
+        const digits: usize = if (n == 4) 2 else 3;
+        message.* = switch (err) {
+            error.Count => "colour bands come in 4, 5 or 6",
+            error.Digit => for (bands[0..digits], 1..) |b, i| {
+                if (b.digit() == null) break try std.fmt.allocPrint(arena, "band {d}: {s} is not a digit colour", .{ i, @tagName(b) });
+            } else "a band is not a digit colour",
+            error.Multiplier => try std.fmt.allocPrint(arena, "band {d}: {s} is not a multiplier colour", .{ digits + 1, @tagName(bands[digits]) }),
+            error.Tolerance => try std.fmt.allocPrint(arena, "band {d}: {s} is not a tolerance colour", .{ digits + 2, @tagName(bands[digits + 1]) }),
+            error.Tcr => try std.fmt.allocPrint(arena, "band 6: {s} is not a temperature coefficient colour", .{@tagName(bands[5])}),
+        };
+        return error.Usage;
+    };
+
+    try out.writeAll("{\"ok\":true,\"bands\":");
+    try writeColours(out, bands[0..n]);
+    try out.writeAll(",\"value\":");
+    try writeQuantity(out, v.value, 4, ohm);
+    try out.writeAll(",\"tolerancePct\":");
+    try writeNumber(out, v.tolerance);
+    try out.writeAll(",\"tcr\":");
+    if (v.tcr) |t| try writeNumber(out, t) else try out.writeAll("null");
+    try out.writeAll(",\"min\":");
+    try writeQuantity(out, v.value * (1 - v.tolerance / 100), 4, ohm);
+    try out.writeAll(",\"max\":");
+    try writeQuantity(out, v.value * (1 + v.tolerance / 100), 4, ohm);
+    try out.writeAll(",\"series\":");
+    if (v.value > 0) try writeSeriesOf(out, v.value) else try out.writeAll("null");
+    try writeSelection(out, sel);
+    if (v.value > 0) {
+        try out.writeAll(",\"parts\":");
+        try writeParts(out, v.value, sel);
+    }
+    try out.writeAll("}\n");
+}
+
+fn cmdLed(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "vs", "vf", "if", "count", "series", "package", "tolerance" }, message);
+    if (o.positional != null) return usage(message, "unexpected argument");
+    const sel = try selectionOrDefault(&o, message);
+    const vs = try requirePositive(try number(&o, "vs", message, "supply is not a number"), message, "enter the supply voltage", "supply must be above zero");
+    const vf = try requirePositive(try number(&o, "vf", message, "Vf is not a number"), message, "enter the LED forward voltage", "Vf must be above zero");
+    const current = try requirePositive(try number(&o, "if", message, "current is not a number"), message, "enter the LED current", "current must be above zero");
+    var count: u32 = 1;
+    if (o.get("count")) |c| if (std.mem.trim(u8, c, " ").len > 0) {
+        count = std.fmt.parseInt(u32, std.mem.trim(u8, c, " "), 10) catch return usage(message, "LED count must be a whole number");
+        if (count == 0 or count > 50) return usage(message, "LED count must be 1 to 50");
+    };
+    const series = try seriesOption(&o, message);
+
+    const a = circuits.led(vs, vf, current, count) catch
+        return usage(message, if (count == 1) "supply must be above Vf" else "supply must be above Vf times the LED count");
+    if (a.exact < eseries.min_value or a.exact > eseries.max_value) return usage(message, "resistor would be outside 1 m to 100 G");
+    const n = eseries.nearest(series, a.exact);
+
+    try out.print("{{\"ok\":true,\"series\":\"{s}\",\"count\":{d},\"exact\":", .{ series.name(), count });
+    try writeQuantity(out, a.exact, 4, ohm);
+    try out.writeAll(",\"drop\":");
+    try writeQuantity(out, a.drop, 4, "V");
+    try out.writeAll(",\"efficiency\":");
+    try writeNumber(out, (vs - a.drop) / vs * 100);
+    try out.writeAll(",\"up\":");
+    try writeLedChoice(out, circuits.ledWith(a.drop, vf, n.above), current, count, sel.package);
+    try out.writeAll(",\"down\":");
+    if (n.exact) try out.writeAll("null") else try writeLedChoice(out, circuits.ledWith(a.drop, vf, n.below), current, count, sel.package);
+    try writeSelection(out, sel);
+    try out.writeAll(",\"parts\":");
+    try writeParts(out, n.above, sel);
+    try out.writeAll("}\n");
+}
+
+fn writeLedChoice(out: *Io.Writer, c: circuits.LedChoice, target: f64, count: u32, package: parts.Package) Io.Writer.Error!void {
+    try out.writeAll("{\"r\":");
+    try writeQuantity(out, c.r, 3, ohm);
+    try out.writeAll(",\"current\":");
+    try writeQuantity(out, c.current, 3, "A");
+    try out.writeAll(",\"currentErrorPct\":");
+    try writeNumber(out, eseries.errorPercent(c.current, target));
+    try out.writeAll(",\"pLed\":");
+    try writeQuantity(out, c.p_led, 3, "W");
+    try out.writeAll(",\"pTotal\":");
+    try writeQuantity(out, c.p_resistor + c.p_led * @as(f64, @floatFromInt(count)), 3, "W");
+    try out.writeAll(",\"load\":");
+    try writeLoad(out, c.p_resistor, package);
+    try out.writeAll("}");
+}
+
+fn cmdOhm(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "v", "i", "r", "p" }, message);
+    if (o.positional != null) return usage(message, "unexpected argument");
+    const v = try positiveIn(&o, "v", message, "V must be a number above zero");
+    const i = try positiveIn(&o, "i", message, "I must be a number above zero");
+    const r = try positiveIn(&o, "r", message, "R must be a number above zero");
+    const p = try positiveIn(&o, "p", message, "P must be a number above zero");
+    const x = circuits.ohm(v, i, r, p) catch return usage(message, "enter exactly two of V, I, R and P");
+    try out.writeAll("{\"ok\":true,\"v\":");
+    try writeQuantity(out, x.v, 4, "V");
+    try out.writeAll(",\"i\":");
+    try writeQuantity(out, x.i, 4, "A");
+    try out.writeAll(",\"r\":");
+    try writeQuantity(out, x.r, 4, ohm);
+    try out.writeAll(",\"p\":");
+    try writeQuantity(out, x.p, 4, "W");
+    try out.print(",\"given\":{{\"v\":{},\"i\":{},\"r\":{},\"p\":{}}}}}\n", .{ v != null, i != null, r != null, p != null });
+}
+
+fn cmdRc(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "r", "c", "f", "tau", "series" }, message);
+    if (o.positional != null) return usage(message, "unexpected argument");
+    const series = try seriesOption(&o, message);
+    const r = try positiveIn(&o, "r", message, "R must be a number above zero");
+    const c = try positiveIn(&o, "c", message, "C must be a number above zero");
+    const f = try positiveIn(&o, "f", message, "frequency must be a number above zero");
+    const tau = try positiveIn(&o, "tau", message, "time constant must be a number above zero");
+    const x = circuits.rc(r, c, f, tau) catch |err| return usage(message, switch (err) {
+        error.Both => "give the cutoff or the time constant, not both",
+        error.NeedTwo => "enter exactly two of R, C and the cutoff (or time constant)",
+    });
+    try out.writeAll("{\"ok\":true,\"r\":");
+    try writeQuantity(out, x.r, 4, ohm);
+    try out.writeAll(",\"c\":");
+    try writeQuantity(out, x.c, 4, "F");
+    try out.writeAll(",\"tau\":");
+    try writeQuantity(out, x.tau, 4, "s");
+    try out.writeAll(",\"settle\":");
+    try writeQuantity(out, 5 * x.tau, 4, "s");
+    try out.writeAll(",\"fc\":");
+    try writeQuantity(out, x.fc, 4, "Hz");
+    try out.print(",\"solved\":\"{s}\",\"suggest\":", .{@tagName(x.solved)});
+    // A solved R outside the 1 mΩ to 100 GΩ part range gets no suggestion.
+    const suggest_r = x.solved == .r and eseries.inRange(eseries.nearest(series, x.r).nearest);
+    switch (x.solved) {
+        .r, .c => if (x.solved == .c or suggest_r) {
+            const std_value = if (x.solved == .r) eseries.nearest(series, x.r).nearest else circuits.nearestE12(x.c);
+            const t = if (x.solved == .r) std_value * x.c else x.r * std_value;
+            try out.print("{{\"series\":\"{s}\",\"value\":", .{if (x.solved == .r) series.name() else "E12"});
+            try writeQuantity(out, std_value, 3, if (x.solved == .r) ohm else "F");
+            try out.writeAll(",\"fc\":");
+            try writeQuantity(out, 1 / (2 * std.math.pi * t), 4, "Hz");
+            try out.writeAll(",\"tau\":");
+            try writeQuantity(out, t, 4, "s");
+            try out.writeAll("}");
+        } else try out.writeAll("null"),
+        else => try out.writeAll("null"),
+    }
+    try out.writeAll("}\n");
+}
+
+fn cmdLc(rest: []const [:0]const u8, out: *Io.Writer, message: *[]const u8) Failure!void {
+    const o = try parseOptions(rest, &.{ "l", "c", "f" }, message);
+    if (o.positional != null) return usage(message, "unexpected argument");
+    const l = try positiveIn(&o, "l", message, "L must be a number above zero");
+    const c = try positiveIn(&o, "c", message, "C must be a number above zero");
+    const f = try positiveIn(&o, "f", message, "frequency must be a number above zero");
+    const x = circuits.lc(l, c, f) catch return usage(message, "enter exactly two of L, C and the frequency");
+    try out.writeAll("{\"ok\":true,\"l\":");
+    try writeQuantity(out, x.l, 4, "H");
+    try out.writeAll(",\"c\":");
+    try writeQuantity(out, x.c, 4, "F");
+    try out.writeAll(",\"f0\":");
+    try writeQuantity(out, x.f0, 4, "Hz");
+    try out.writeAll(",\"z0\":");
+    try writeQuantity(out, x.z0, 4, ohm);
+    try out.print(",\"solved\":\"{s}\",\"suggest\":", .{@tagName(x.solved)});
+    switch (x.solved) {
+        .l, .c => {
+            const std_value = circuits.nearestE12(if (x.solved == .l) x.l else x.c);
+            const lc_product = if (x.solved == .l) std_value * x.c else x.l * std_value;
+            try out.writeAll("{\"series\":\"E12\",\"value\":");
+            try writeQuantity(out, std_value, 3, if (x.solved == .l) "H" else "F");
+            try out.writeAll(",\"f0\":");
+            try writeQuantity(out, 1 / (2 * std.math.pi * @sqrt(lc_product)), 4, "Hz");
+            try out.writeAll("}");
+        },
+        else => try out.writeAll("null"),
+    }
+    try out.writeAll("}\n");
+}
+
 // ---- JSON ----------------------------------------------------------------
 
 fn writeSelection(out: *Io.Writer, s: Selection) Io.Writer.Error!void {
@@ -434,4 +762,6 @@ test {
     _ = eseries;
     _ = divider;
     _ = parts;
+    _ = codes;
+    _ = circuits;
 }
