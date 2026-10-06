@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "conree.ee-calc",
   "name": "EE Calc",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "author": "conree",
   "license": "MIT",
   "description": "Electronics bench calculator in the bar: nearest E-series value with two-resistor combinations, and voltage divider analysis and design from standard values.",

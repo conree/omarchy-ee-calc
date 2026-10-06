@@ -27,10 +27,18 @@ and message.
 
 ## Updates
 
+- **v0.2.6:** the panel header shows the installed version next to the
+  name.
 - **v0.2.5:** version and documentation update. No change to the
   calculator.
 - **2026-10-01:** added the [user manual](docs/USER_MANUAL.md) and an
   [architecture diagram](#architecture). No change to the plugin itself.
+
+## What's new in 0.2.6
+
+The panel header now shows the installed version next to the name, for
+example **EE Calc v0.2.6**. It is read from the plugin's `manifest.json`,
+so it always matches the version you have. The calculator is unchanged.
 
 ## What's new in 0.2.5
 

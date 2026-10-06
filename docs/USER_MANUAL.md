@@ -1,6 +1,6 @@
 # EE Calc user manual
 
-Version 0.2.5. For EE Calc, the electronics bench calculator plugin for the
+Version 0.2.6. For EE Calc, the electronics bench calculator plugin for the
 Omarchy Quattro bar.
 
 ## 1. What EE Calc does
@@ -43,6 +43,8 @@ omarchy plugin enable conree.ee-calc
 
 A calculator icon appears on the right of your bar, or wherever you placed
 it.
+The panel header shows the installed version next to the name, for example
+**EE Calc v0.2.6**.
 
 **Update:**
 

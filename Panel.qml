@@ -228,6 +228,18 @@ Panel {
     }
   }
 
+  // The header version comes from manifest.json, so it can't drift from it.
+  property string version: ""
+
+  FileView {
+    path: Model.localPath(Qt.resolvedUrl("manifest.json"))
+    watchChanges: false
+    printErrors: false
+    onLoaded: {
+      try { root.version = String(JSON.parse(text()).version || "") } catch (e) { root.version = "" }
+    }
+  }
+
   // Theme switches arrive over shell IPC and reassign shellValues even when
   // the accent is unchanged (the Dracula Pro variants share one), so that is
   // the signal to re-read the palette.
@@ -644,6 +656,16 @@ Panel {
               font.family: root.fontFamily
               font.pixelSize: root.fs(Style.font.heading)
               font.weight: Font.Bold
+            }
+            Text {
+              anchors.baseline: parent.children[0].baseline
+              visible: root.version !== ""
+              text: "v" + root.version
+              textFormat: Text.PlainText
+              color: root.fg
+              opacity: 0.6
+              font.family: root.fontFamily
+              font.pixelSize: root.fs(Style.font.body)
             }
           }
 
