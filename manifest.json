@@ -98,7 +98,7 @@
           "5"
         ],
         "defaultValue": "1",
-        "description": "Tolerance in percent for part numbers. 5 % parts come in E24 values only."
+        "description": "Tolerance in percent for part numbers. 5 % parts come in E24 values only. 0.1 % and 0.5 % parts are thin film, in 0402 to 1206 only."
       },
       {
         "key": "font",
