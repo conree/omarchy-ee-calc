@@ -1,6 +1,6 @@
 # EE Calc user manual
 
-Version 0.3.1. For EE Calc, the electronics bench calculator plugin for the
+Version 0.3.2 (local candidate; not released). For EE Calc, the electronics bench calculator plugin for the
 Omarchy Quattro bar.
 
 ## 1. What EE Calc does
@@ -50,7 +50,9 @@ omarchy plugin enable conree.ee-calc
 A calculator icon appears on the right of your bar, or wherever you placed
 it.
 The panel header shows the installed version next to the name, for example
-**EE Calc v0.3.1**.
+**EE Calc v0.3.2** for this candidate. Existing screenshots were captured
+with v0.3.0 and illustrate the layout; the text describes the current
+behaviour. They are omitted from the low-ink print edition.
 
 **Update:**
 
@@ -179,8 +181,13 @@ The readings:
 The power colours:
 
 - Green: up to half the package rating.
-- Yellow: above half, up to the rating. The part works but runs hot.
-- Red: above the rating. The part is overloaded.
+- Yellow: above half, up to the nominal power rating.
+- Red: above the nominal power rating.
+
+These colours compare nominal dissipation only. They do not check the
+part's working voltage, tolerance, thermal derating, mounting or pulse
+limits. Green does not establish that a component is suitable; check the
+exact part's datasheet for those limits.
 
 A share below 1 % is shown as **(<1 %)**.
 
@@ -204,7 +211,9 @@ five best pairs:
   equally close, the pair whose total is nearer the middle of your range
   comes first.
 - Pairs with the same R1 : R2 ratio, such as 24k : 9.1k and 240k : 91k,
-  give the same Vout without a load, so only one of them is listed.
+  give the same Vout without a load, so only one is listed **when unloaded**.
+  With a fixed load, scaled pairs can give different outputs and remain
+  eligible for the shortlist.
 - The best pair is shown in bold.
 - If a resistor in a pair would dissipate more than its package rating, its
   value is shown in red.
@@ -241,9 +250,10 @@ figures, and EIA-96 covers only E96 values from 1 Ω to 97.6 MΩ.
 **Colour bands.** Below the codes, the value is drawn as a resistor with
 its colour bands, with the colours spelled out underneath. The tolerance
 band follows your **Tolerance** choice. At 5 %, a value with two figures
-gets four bands; every other value gets five, with three figures. When the
-value has more figures than the bands can hold, the panel says *No colour
-bands for this value*.
+gets four bands; tighter tolerances normally use five. A valid four-band
+code is used when five bands cannot reach a low value, such as 0.047 Ω
+at 1 % (yellow, violet, pink, brown). If neither form can represent the
+value, the panel identifies that encoder limitation.
 
 The part list for the value is at the bottom.
 
@@ -365,7 +375,8 @@ and no stock check. Check availability with your distributor as usual.
 
 The examples are 0603 at 1 % and at 0.1 %, and ¼W at 1 %.
 
-**Thin film (0.1 % and 0.5 %).** All three families are ±25 ppm/K. Yageo
+**Thin film (0.1 % and 0.5 %).** The listed families normally use ±25 ppm/K,
+with the Panasonic low-resistance exceptions below. Yageo
 RT and Panasonic ERA come in E24 and E96 values, Vishay TNPW in E24 and
 E192, so an E192-only value lists Vishay alone. Below 47 Ω Panasonic makes
 only 0.5 % parts, at ±50 ppm/K (±100 ppm/K in 0402); the family name in
@@ -384,7 +395,7 @@ number.
 
 | Message | Meaning |
 |---|---|
-| **No 5 % part / choose E24** | 5 % is chosen with the E48 or E96 series. 5 % parts come in E24 values only; choose E24 to see them. |
+| **No 5 % part / choose E24** | At 5 %, the selected E48/E96/E192 value is specifically rejected because it is not an E24 value. Package and resistance-range errors retain their own explanations. |
 | **No part / not made at 5 % (E24 values only)** | The value is an E48 or E96 value, which is not made at 5 %. |
 | **No part / outside every maker's range for this size** | No manufacturer makes this value in this package at this tolerance. |
 | **No part / outside the 1 Ω to 4.7 MΩ range** | Through-hole parts are offered from 1 Ω to 4.7 MΩ. |
@@ -399,9 +410,9 @@ only Yageo and Vishay.
 **"not for new designs"** appears next to Panasonic 1206 parts, because
 Panasonic marks those sizes "not recommended for new design".
 
-**The power rating used by the power check** is the lowest standard rating
-among the manufacturers for that package, so a pass holds whichever part
-you buy. Each row in a part list shows that maker's own rating, which can
+**The rating used by the nominal power comparison** is the lowest standard
+power rating among the manufacturers for that package. Voltage and thermal
+limits are not checked. Each part-list row shows that maker's own rating, which can
 be higher; Vishay's thin-film 0603, for example, is 110 mW.
 
 | Package | Rating used |

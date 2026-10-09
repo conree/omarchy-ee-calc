@@ -29,7 +29,7 @@ const parts = @import("parts.zig");
 const codes = @import("codes.zig");
 const circuits = @import("circuits.zig");
 
-const version = "0.3.1";
+const version = "0.3.2";
 // Greek capital omega rather than U+2126 OHM SIGN: far more fonts carry it.
 const ohm = "\u{03A9}";
 
@@ -128,8 +128,9 @@ fn usage(message: *[]const u8, text: []const u8) Failure {
 
 const Options = struct {
     positional: ?[]const u8 = null,
-    keys: [8][]const u8 = undefined,
-    vals: [8][]const u8 = undefined,
+    // Divider design accepts nine distinct options; reserve room for growth.
+    keys: [16][]const u8 = undefined,
+    vals: [16][]const u8 = undefined,
     len: usize = 0,
 
     fn get(self: *const Options, key: []const u8) ?[]const u8 {

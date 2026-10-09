@@ -64,8 +64,8 @@ pub const SolveOptions = struct {
 };
 
 /// Standard R1/R2 pairs for `vout` from `vin`, best first. Pairs that are
-/// the same ratio a decade apart are collapsed to the one whose total sits
-/// closest to the middle of the allowed range.
+/// the same ratio a decade apart are collapsed only when unloaded. A fixed
+/// load makes scaled pairs electrically different, so all remain eligible.
 pub fn solve(gpa: std.mem.Allocator, vin: f64, vout: f64, opts: SolveOptions) SolveError![]Candidate {
     if (!(vin > 0) or !(vout > 0) or !(vout < vin)) return error.OutOfRange;
     if (!(opts.r_min > 0) or !(opts.r_max >= opts.r_min)) return error.BadRange;
@@ -123,10 +123,12 @@ pub fn solve(gpa: std.mem.Allocator, vin: f64, vout: f64, opts: SolveOptions) So
     for (all.items) |c| {
         if (out.items.len == opts.count) break;
         var duplicate = false;
-        for (out.items) |kept| {
-            if (@abs(c.r1 / c.r2 - kept.r1 / kept.r2) <= 1e-9 * (c.r1 / c.r2)) {
-                duplicate = true;
-                break;
+        if (rl == null) {
+            for (out.items) |kept| {
+                if (@abs(c.r1 / c.r2 - kept.r1 / kept.r2) <= 1e-9 * (c.r1 / c.r2)) {
+                    duplicate = true;
+                    break;
+                }
             }
         }
         if (!duplicate) try out.append(gpa, c);
@@ -229,4 +231,17 @@ test "solve accepts an exact total" {
     defer testing.allocator.free(got);
     try testing.expect(got.len > 0);
     for (got) |c| try testing.expectApproxEqRel(@as(f64, 120), c.total, 1e-9);
+}
+
+test "loaded shortlist retains electrically different scaled pairs" {
+    const got = try solve(testing.allocator, 5, 3.3, .{ .series = .e3, .r_min = 1e3, .r_max = 100e3, .load = 68e3 });
+    defer testing.allocator.free(got);
+    var found = false;
+    for (got) |c| {
+        if (c.r1 == 470 and c.r2 == 1000) {
+            found = true;
+            try testing.expectApproxEqRel(@as(f64, 5.0 / (1.0 + 470.0 / 1000.0 + 470.0 / 68000.0)), c.vout, 1e-12);
+        }
+    }
+    try testing.expect(found);
 }

@@ -3,5 +3,6 @@ engine/zig-out/
 # The manual PDF embeds Visby CF; its licence requires embedded fonts to be
 # non-extractable, so the PDF is kept local (for printing) and not published.
 docs/EE_Calc_User_Manual.pdf
-# Outlined SVG of the diagram (Comic Code glyph outlines): local only, see docs/architecture.dot.
+docs/EE_Calc_User_Manual.html
+# Private local SVG of the diagram; public documentation uses the PNG.
 docs/architecture.svg

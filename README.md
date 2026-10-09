@@ -30,14 +30,23 @@ An electronics bench calculator for the Omarchy Quattro bar.
   Panasonic. Click a part number to copy it.
 - **Power check:** in the divider and the LED calculator, each resistor's
   dissipation is shown as a share of the chosen package's rating: green up
-  to half, yellow up to the rating, red beyond it.
+  to half, yellow up to the rating, red beyond it. This is nominal power
+  utilization only; voltage limits, tolerance and thermal derating are
+  not checked. Green is not a component-suitability approval.
 
 The **[user manual](docs/USER_MANUAL.md)** explains every feature, reading
 and message. The **?** at the top right of the panel opens it at the
 section for the screen you are on.
 
+[Project contributors](CONTRIBUTORS.md) are credited separately from GitHub's
+automatically generated Contributors sidebar.
+
 ## Updates
 
+- **v0.3.2 — local candidate, not released:** fixes loaded-divider
+  shortlists, the full nine-option CLI, low-value colour-band encoding,
+  tiny-result formatting and misleading part/power messages. Release
+  metadata and the printable manual builder are synchronized.
 - **v0.3.1:** new screenshots of every screen, and a clearer description
   of the Tolerance setting. No change to the calculator.
 - **v0.3.0:** E192, 0.1 % and 0.5 % parts, marking codes and colour
@@ -56,7 +65,9 @@ built, and the panel has a row of five tabs under its title.
 
 - **E192 series** in the E-series tab and in divider design.
 - **0.1 % and 0.5 % part numbers:** thin-film parts from Yageo RT,
-  Vishay TNPW and Panasonic ERA, all ±25 ppm/K. These come in 0402 to
+  Vishay TNPW and Panasonic ERA, normally ±25 ppm/K. Panasonic 0.5 %
+  parts below 47 Ω use ±100 ppm/K in 0402 and ±50 ppm/K in larger sizes.
+  These come in 0402 to
   1206 only; there is no through-hole part at these tolerances.
 - **Codes tab:** value to SMD codes and colour bands, SMD code to value,
   and colour bands to value on a drawn resistor whose bands you click. A
@@ -184,7 +195,7 @@ with your distributor as usual.
 | Package | Tolerance | Families | Example (4.99 kΩ) |
 |---|---|---|---|
 | 0402 to 1206 | 1 %, 5 % | Yageo RC, Vishay CRCW e3, Panasonic ERJ | `RC0603FR-074K99L`, `CRCW06034K99FKEA`, `ERJ3EKF4991V` |
-| 0402 to 1206 | 0.1 %, 0.5 % | Yageo RT, Vishay TNPW e3, Panasonic ERA (thin film, ±25 ppm/K) | `RT0603BRD074K99L`, `TNPW06034K99BEEA`, `ERA3AEB4991V` |
+| 0402 to 1206 | 0.1 %, 0.5 % | Yageo RT, Vishay TNPW e3, Panasonic ERA (thin film; see TCR exceptions above) | `RT0603BRD074K99L`, `TNPW06034K99BEEA`, `ERA3AEB4991V` |
 | ¼ W, ½ W through hole | 1 %, 5 % | Yageo MFR metal film | `MFR-25FBF52-4K99` |
 
 The examples are 0603 at 1 % and 0.1 %, and ¼ W at 1 %.
@@ -196,9 +207,11 @@ The examples are 0603 at 1 % and 0.1 %, and ¼ W at 1 %.
   10 Ω, for example, so a 2.2 Ω part lists only Yageo and Vishay.
 - Panasonic marks its 1206 sizes "not recommended for new design"; the
   panel shows that next to the part.
-- The power check uses the lowest standard rating among the makers for
-  that package, so a pass holds whichever part you buy: 0402 62.5 mW,
+- The nominal power comparison uses the lowest standard rating among the
+  makers for that package: 0402 62.5 mW,
   0603 100 mW, 0805 125 mW, 1206 250 mW, through hole 250 mW or 500 mW.
+  It does not check working voltage, temperature, mounting, pulses or
+  tolerance. Check those limits in the exact part's datasheet before use.
 
 Sources, all manufacturer datasheets: Yageo RC_L (V.14, Nov 2025), Vishay
 D/CRCW e3 (doc. 20035, Apr 2026), Panasonic ERJ ±1 % (AOA0000C304, May
@@ -327,3 +340,27 @@ for large errors, and its green and yellow (`color2` and `color3` in
 ## License
 
 MIT. See `LICENSE`.
+
+## Build and validate from source
+
+Requires Zig 0.16.0, Python 3 and Node.js for the regression checks. From
+the repository root:
+
+```sh
+cd engine
+zig build test
+zig build --release=safe
+cd ..
+python3 tests/audit_regressions.py
+node tests/model_regressions.js
+```
+
+The build writes `bin/ee-calc` using a baseline CPU target. It does not
+install or reload the desktop plugin. Keep `manifest.json`, the engine
+version and `engine/build.zig.zon` synchronized when preparing a release;
+regenerate `bin/ee-calc.sha256` after rebuilding.
+
+`python3 docs/build_manual_pdf.py` creates the private, low-ink print
+manual from the Markdown and manifest version. It omits screenshots and
+keeps the text, equations and tables. `--html-only` prepares the print
+HTML without starting a browser. Both outputs stay local.

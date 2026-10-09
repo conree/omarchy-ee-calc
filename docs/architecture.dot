@@ -1,47 +1,46 @@
 // EE Calc architecture. Source for docs/architecture.png; regenerate with:
 //   dot -Tpng -Gdpi=144 docs/architecture.dot -o docs/architecture.png
-// Published as a PNG, not an outlined SVG: the Comic Code licence does not
-// allow distributing its glyph outlines in a reusable form.
-// Colours are the Dracula Pro Van Helsing palette. Every label is a table
+// Published PNG; private SVG uses local Visby without embedding the font.
+// Colours follow the Documents Standard Alucard light palette. Every label is a table
 // so multi-line text keeps its line spacing.
 
 digraph eecalc {
-  graph [rankdir=TB, bgcolor="#0B0D0F", fontname="Comic Code Ligatures", fontcolor="#F8F8F2",
+  graph [rankdir=TB, bgcolor="#fcfcfc", fontname="Visby", fontcolor="#1f1f1f",
          pad=0.45, nodesep=0.45, ranksep=0.65, compound=true, newrank=true, splines=spline]
-  node  [shape=box, style="rounded,filled", fillcolor="#15191D", color="#9580FF", penwidth=1.6,
-         fontname="Comic Code Ligatures", fontcolor="#F8F8F2", fontsize=13, margin="0.12,0.06"]
-  edge  [color="#708CA9", penwidth=1.3, arrowsize=0.8, fontname="Comic Code Ligatures",
-         fontcolor="#80FFEA", fontsize=11]
+  node  [shape=box, style="rounded,filled", fillcolor="#fcfcfc", color="#644ac9", penwidth=1.6,
+         fontname="Visby", fontcolor="#1f1f1f", fontsize=13, margin="0.12,0.06"]
+  edge  [color="#635d97", penwidth=1.3, arrowsize=0.8, fontname="Visby",
+         fontcolor="#036a96", fontsize=11]
 
   label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#FF80BF"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#9580FF"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#F8F8F2">   architecture, v0.3.1</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#a3144d"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#644ac9"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#1f1f1f">   architecture, v0.3.2 candidate</FONT></TD></TR>
   </TABLE>>
   labelloc=t; labeljust=l
 
   // ---- Inside the Omarchy shell -------------------------------------------
   subgraph cluster_shell {
-    label=<<FONT COLOR="#80FFEA" POINT-SIZE="14"><B>Omarchy shell</B>  (Quickshell, QML)</FONT>>
-    labeljust=l; style="rounded,dashed"; color="#414D58"; penwidth=1.2; margin=16
+    label=<<FONT COLOR="#036a96" POINT-SIZE="14"><B>Omarchy shell</B>  (Quickshell, QML)</FONT>>
+    labeljust=l; style="rounded,dashed"; color="#cfcfde"; penwidth=1.2; margin=16
 
     bar [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>BarWidget.qml</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">bar icon, opens the panel,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">saves settings</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">bar icon, opens the panel,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">saves settings</FONT></TD></TR></TABLE>>]
 
     panel [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD ALIGN="LEFT"><B>Panel.qml</B></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">E-series tab</FONT></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">Divider tab: Analyse + live schematic, Find values</FONT></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">Codes tab: SMD codes, clickable colour bands</FONT></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FF80BF">LED / Ohm tab, RC / LC tab</FONT></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#8AFF80">package and tolerance selectors</FONT></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#FFFF80">part lists, click to copy</FONT></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#80FFEA">power check against package rating</FONT></TD></TR></TABLE>>]
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a3144d">E-series tab</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a3144d">Divider tab: Analyse + live schematic, Find values</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a3144d">Codes tab: SMD codes, clickable colour bands</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a3144d">LED / Ohm tab, RC / LC tab</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#14710a">package and tolerance selectors</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#846e15">part lists, click to copy</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#036a96">nominal power use; voltage / thermal checks excluded</FONT></TD></TR></TABLE>>]
 
     model [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>Model.js</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">helpers: result parsing,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">formatting, theme colours</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">helpers: result parsing,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">formatting, theme colours</FONT></TD></TR></TABLE>>]
 
     { rank=same; bar; panel; model }
     bar -> panel [label="  opens  "]
@@ -50,12 +49,12 @@ digraph eecalc {
 
   // ---- Files and tools the shell side touches -------------------------------
   subgraph cluster_ext {
-    label=<<FONT COLOR="#FF80BF" POINT-SIZE="12">on the system</FONT>>
-    labeljust=l; labelloc=b; style="rounded,dashed"; color="#414D58"; penwidth=1.0; margin=12
-    node [shape=note, color="#FF80BF"]
-    shelljson [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>shell.json</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">widget settings</FONT></TD></TR></TABLE>>]
-    colors    [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>colors.toml</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">theme palette</FONT></TD></TR></TABLE>>]
-    wlcopy    [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>wl-copy</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">clipboard</FONT></TD></TR></TABLE>>]
+    label=<<FONT COLOR="#a3144d" POINT-SIZE="12">on the system</FONT>>
+    labeljust=l; labelloc=b; style="rounded,dashed"; color="#cfcfde"; penwidth=1.0; margin=12
+    node [shape=note, color="#a3144d"]
+    shelljson [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>shell.json</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">widget settings</FONT></TD></TR></TABLE>>]
+    colors    [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>colors.toml</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">theme palette</FONT></TD></TR></TABLE>>]
+    wlcopy    [label=<<TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0"><TR><TD><B>wl-copy</B></TD></TR><TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">clipboard</FONT></TD></TR></TABLE>>]
     { rank=same; shelljson; colors; wlcopy }
   }
 
@@ -65,43 +64,43 @@ digraph eecalc {
 
   // ---- The Zig engine -----------------------------------------------------
   subgraph cluster_engine {
-    label=<<FONT COLOR="#8AFF80" POINT-SIZE="14"><B>bin/ee-calc</B>  (Zig engine, static x86-64)</FONT>>
-    labeljust=l; labelloc=b; style="rounded,dashed"; color="#414D58"; penwidth=1.2; margin=16
+    label=<<FONT COLOR="#14710a" POINT-SIZE="14"><B>bin/ee-calc</B>  (Zig engine, static x86-64)</FONT>>
+    labeljust=l; labelloc=b; style="rounded,dashed"; color="#cfcfde"; penwidth=1.2; margin=16
 
-    main [color="#8AFF80", label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
+    main [color="#14710a", label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>main.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">commands: eseries, divider,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">divider-solve, parts, codes,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">marking, bands, led, ohm, rc, lc</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">commands: eseries, divider,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">divider-solve, parts, codes,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">marking, bands, led, ohm, rc, lc</FONT></TD></TR></TABLE>>]
 
     units [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>units.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">engineering notation</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">in and out</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">engineering notation</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">in and out</FONT></TD></TR></TABLE>>]
     eseries [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>eseries.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">IEC 60063 E3 to E192,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">nearest value, best pair</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">IEC 60063 E3 to E192,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">nearest value, best pair</FONT></TD></TR></TABLE>>]
     divider [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>divider.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">analysis and design</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">analysis and design</FONT></TD></TR></TABLE>>]
     parts [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>parts.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">package ratings, part numbers:</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Yageo RC, Vishay CRCW,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Panasonic ERJ, Yageo MFR;</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">thin film: Yageo RT,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">Vishay TNPW, Panasonic ERA</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">package ratings, part numbers:</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">Yageo RC, Vishay CRCW,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">Panasonic ERJ, Yageo MFR;</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">thin film: Yageo RT,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">Vishay TNPW, Panasonic ERA</FONT></TD></TR></TABLE>>]
 
     codes [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>codes.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">SMD 3/4-digit, EIA-96,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">IEC 60062 colour bands,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">both ways</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">SMD 3/4-digit, EIA-96,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">IEC 60062 colour bands,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">both ways</FONT></TD></TR></TABLE>>]
     circuits [label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
       <TR><TD><B>circuits.zig</B></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">LED resistor, Ohm's law,</FONT></TD></TR>
-      <TR><TD><FONT POINT-SIZE="11" COLOR="#80FFEA">RC, LC resonance</FONT></TD></TR></TABLE>>]
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">LED resistor, Ohm's law,</FONT></TD></TR>
+      <TR><TD><FONT POINT-SIZE="11" COLOR="#036a96">RC, LC resonance</FONT></TD></TR></TABLE>>]
 
     { rank=same; units; eseries; divider; parts; codes; circuits }
     main -> units
@@ -113,10 +112,10 @@ digraph eecalc {
   }
 
   // ---- Copyright, bottom right: hung below the rightmost module -----------
-  copyright [shape=plaintext, style="", label=<<FONT POINT-SIZE="11" COLOR="#6B7785">© 2026 conree</FONT>>]
+  copyright [shape=plaintext, style="", label=<<FONT POINT-SIZE="11" COLOR="#635d97">© 2026 conree</FONT>>]
   circuits -> copyright [style=invis]
 
   // ---- Panel <-> engine -----------------------------------------------------
-  panel -> main [label=<  runs on each change<BR/>  (argv only, no shell)  >, color="#9580FF", penwidth=1.8]
-  main -> panel [label="  one JSON object  ", color="#8AFF80", penwidth=1.8]
+  panel -> main [label=<  runs on each change<BR/>  (argv only, no shell)  >, color="#644ac9", penwidth=1.8]
+  main -> panel [label="  one JSON object  ", color="#14710a", penwidth=1.8]
 }

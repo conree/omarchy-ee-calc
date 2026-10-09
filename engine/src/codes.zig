@@ -312,7 +312,11 @@ pub fn toleranceColour(percent: f64) ?Colour {
 /// looser parts take four bands where they can, the way they are made.
 pub fn encodeBands(out: *[5]Colour, value: f64, tolerance_band: Colour) ?[]Colour {
     const loose = (tolerance_band.tolerance() orelse 0) >= 2;
-    if (loose) {
+    const three = sigDigits(value, 3);
+    // Tight tolerance usually uses five bands, but a low value can require
+    // two digits and the pink multiplier even at 1 %, 0.5 % or 0.1 %.
+    const five_fits = if (three) |s| s.exp >= -3 and s.exp <= 9 else false;
+    if (loose or !five_fits) {
         if (sigDigits(value, 2)) |s| if (s.exp >= -3 and s.exp <= 9) {
             out[0] = @enumFromInt(s.sig / 10);
             out[1] = @enumFromInt(s.sig % 10);
@@ -321,7 +325,8 @@ pub fn encodeBands(out: *[5]Colour, value: f64, tolerance_band: Colour) ?[]Colou
             return out[0..4];
         };
     }
-    const s = sigDigits(value, 3) orelse return null;
+    if (tolerance_band == .none) return null;
+    const s = three orelse return null;
     if (s.exp < -3 or s.exp > 9) return null;
     out[0] = @enumFromInt(s.sig / 100);
     out[1] = @enumFromInt(s.sig / 10 % 10);
@@ -343,6 +348,18 @@ fn expColour(exp: i32) Colour {
 // ---- Tests -------------------------------------------------------------------
 
 const testing = std.testing;
+
+test "low resistance can use four bands at tight tolerance" {
+    var out: [5]Colour = undefined;
+    for ([_]Colour{ .brown, .green, .violet }) |tolerance| {
+        const got = encodeBands(&out, 0.047, tolerance).?;
+        try testing.expectEqualSlices(Colour, &.{ .yellow, .violet, .pink, tolerance }, got);
+        const decoded = try decodeBands(got);
+        try testing.expectApproxEqRel(@as(f64, 0.047), decoded.value, 1e-12);
+        try testing.expectEqual(tolerance.tolerance().?, decoded.tolerance);
+    }
+    try testing.expect(encodeBands(&out, 0.0471, .brown) == null);
+}
 
 test "significant digits" {
     try testing.expectEqual(Sig{ .sig = 47, .exp = 2 }, sigDigits(4700, 2).?);

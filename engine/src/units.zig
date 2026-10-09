@@ -148,6 +148,20 @@ pub fn format(buf: []u8, value: f64, sig: u8, unit: []const u8) []const u8 {
     const magnitude = @abs(value);
     const rounded = roundSig(magnitude, sig);
     const exponent: i32 = decadeOf(rounded);
+    // Beyond pico..tera, fixed prefix formatting can erase a nonzero value
+    // or make an unreadably long integer. Preserve significant figures.
+    if (exponent < -12 or exponent >= 15) {
+        var scientific_buf: [48]u8 = undefined;
+        const decimals: usize = @intCast(std.math.clamp(@as(i32, sig) - 1, 0, 9));
+        var scientific_exponent = exponent;
+        var scientific_mantissa = roundSig(rounded / pow10(exponent), sig);
+        if (scientific_mantissa >= 10) {
+            scientific_mantissa /= 10;
+            scientific_exponent += 1;
+        }
+        const mantissa = printFixed(&scientific_buf, scientific_mantissa, decimals);
+        return std.fmt.bufPrint(buf, "{s}{s}e{d} {s}", .{ if (value < 0) "-" else "", trimZeros(mantissa), scientific_exponent, unit }) catch buf[0..0];
+    }
     var group: i32 = @divFloor(exponent, 3);
     group = std.math.clamp(group, -4, 4);
     const mantissa = rounded / pow10(group * 3);
@@ -261,4 +275,13 @@ test "decade of exact powers" {
     try testing.expectEqual(@as(i32, 3), decadeOf(1000));
     try testing.expectEqual(@as(i32, -3), decadeOf(0.001));
     try testing.expectEqual(@as(i32, 2), decadeOf(999.9));
+}
+
+test "format retains nonzero quantities outside the prefix range" {
+    var buf: [64]u8 = undefined;
+    try testing.expectEqualStrings("1e-30 A", format(&buf, 1e-30, 3, "A"));
+    try testing.expectEqualStrings("1e-45 W", format(&buf, 1e-45, 3, "W"));
+    try testing.expectEqualStrings("-1.23e-25 V", format(&buf, -1.2345e-25, 3, "V"));
+    try testing.expectEqualStrings("1.23e20 W", format(&buf, 1.2345e20, 3, "W"));
+    try testing.expectEqualStrings("1e45 W", format(&buf, 1e15 * (1e15 / 1e-15), 4, "W"));
 }

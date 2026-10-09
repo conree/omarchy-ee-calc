@@ -1,61 +1,49 @@
 #!/usr/bin/env python3
-"""Build docs/EE_Calc_User_Manual.pdf from docs/USER_MANUAL.md.
+"""Build a private low-ink manual using Visby and the Alucard Documents Standard.
 
-The PDF follows the owner's document standard: Visby (installed as
-Visby CF), 12 pt body, Dracula Pro Alucard colours, US Letter portrait, no
-background fills, and a footer with the document line and "Page x of y".
-Screenshots come from screenshots/light/ (the Alucard theme), so the
-printed manual stays light; the GitHub page keeps the dark ones.
-
-The PDF is not committed: it embeds Visby CF, whose licence only allows
-embedded fonts that cannot be extracted, so it stays local for printing
-(see .gitignore). The Markdown manual is the published version.
-
-Needs: pandoc, and Playwright's Chromium headless shell
-(~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux/headless_shell).
+The manifest supplies the version. Screenshots are omitted from the print
+edition; their captions refer to the illustrated Markdown manual. No dark
+or stale light-mode screenshot is silently substituted.
 
     python3 docs/build_manual_pdf.py
+    python3 docs/build_manual_pdf.py --html-only
+
+Requires pandoc and a Chromium-family browser (or EE_CALC_CHROMIUM).
+The generated PDF/HTML are private local artifacts, not release assets.
 """
 
+import argparse
 import datetime
-import glob
+import html
+import json
+import shutil
 import os
 import pathlib
 import re
 import subprocess
 import sys
-import tempfile
 
 DOCS = pathlib.Path(__file__).resolve().parent
 SOURCE = DOCS / "USER_MANUAL.md"
 OUTPUT = DOCS / "EE_Calc_User_Manual.pdf"
-VERSION = "0.2.0"
-
-# Dark GitHub images -> light print images.
-IMAGE_MAP = {
-    "../preview.png": "screenshots/light/overview.png",
-    "screenshots/e-series.png": "screenshots/light/e-series.png",
-    "screenshots/divider-analyse.png": "screenshots/light/divider-analyse.png",
-    "screenshots/divider-loaded.png": "screenshots/light/divider-loaded.png",
-    "screenshots/divider-find-values.png": "screenshots/light/divider-find-values.png",
-}
+MANIFEST = DOCS.parent / "manifest.json"
 
 CSS = """
-@font-face { font-family: DocVisby; src: local("VisbyCF-Regular"); font-weight: 400; }
-@font-face { font-family: DocVisby; src: local("VisbyCF-Medium"); font-weight: 500; }
-@font-face { font-family: DocVisby; src: local("VisbyCF-DemiBold"); font-weight: 600; }
-@font-face { font-family: DocVisby; src: local("VisbyCF-Bold"); font-weight: 700; }
+@font-face { font-family: Visby; src: local("VisbyCF-Regular"); font-weight: 400; }
+@font-face { font-family: Visby; src: local("VisbyCF-Medium"); font-weight: 500; }
+@font-face { font-family: Visby; src: local("VisbyCF-DemiBold"); font-weight: 600; }
+@font-face { font-family: Visby; src: local("VisbyCF-Bold"); font-weight: 700; }
 
 @page {
   size: letter portrait;
   margin: 0.6in 0.6in 0.75in 0.6in;
   @bottom-left {
     content: "EE Calc user manual  \\2014  v%(version)s  \\2014  %(date)s";
-    font-family: DocVisby; font-size: 9pt; color: #4b4b56; font-feature-settings: "ss01";
+    font-family: Visby; font-size: 9pt; color: #4b4b56; font-feature-settings: "ss01";
   }
   @bottom-right {
     content: "Page " counter(page) " of " counter(pages);
-    font-family: DocVisby; font-size: 9pt; color: #4b4b56; font-feature-settings: "ss01";
+    font-family: Visby; font-size: 9pt; color: #4b4b56; font-feature-settings: "ss01";
   }
 }
 
@@ -63,7 +51,8 @@ CSS = """
 *, *::before, *::after { background: transparent !important; box-shadow: none !important; }
 html, body { background: #fff !important; print-color-adjust: economy; -webkit-print-color-adjust: economy; }
 
-body { margin: 0; color: #1f1f1f; font-family: DocVisby; font-size: 12pt; font-weight: 400; line-height: 1.5; }
+body { margin: 0; color: #1f1f1f; font-family: Visby; font-size: 12pt; font-weight: 400; line-height: 1.5; }
+@media screen { body { max-width: 1050px; margin: 24px auto; padding: 0 24px; } }
 h1 { font-size: 20pt; font-weight: 600; margin: 0 0 6pt; border-bottom: 3px solid #644ac9; padding-bottom: 6pt; }
 h1 + p { color: #4b4b56; font-size: 11pt; margin-top: 4pt; }
 h2 { font-size: 14.5pt; font-weight: 600; margin: 18pt 0 6pt; padding-bottom: 3pt; border-bottom: 1px solid #cfcfde; break-after: avoid; }
@@ -74,7 +63,7 @@ li { margin: 2pt 0; }
 strong { font-weight: 600; }
 em { font-style: normal; color: #4b4b56; }
 a { color: #1f1f1f; text-decoration: none; }
-code { font-family: DocVisby; font-weight: 500; color: #036a96; font-size: 11pt; }
+code { font-family: Visby; font-weight: 500; color: #036a96; font-size: 11pt; }
 pre { border: 1px solid #cfcfde; border-left: 3px solid #644ac9; padding: 6pt 10pt; margin: 4pt 0 10pt;
       white-space: pre-wrap; overflow-wrap: break-word; break-inside: avoid; }
 pre code { color: #1f1f1f; font-weight: 500; font-size: 10.5pt; }
@@ -109,46 +98,56 @@ def oval_zeros(html):
 
 
 def find_chromium():
-    hits = sorted(glob.glob(os.path.expanduser(
-        "~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux/headless_shell")))
-    if not hits:
-        sys.exit("Playwright's Chromium headless shell was not found.")
-    return hits[-1]
+    override = os.environ.get("EE_CALC_CHROMIUM")
+    if override:
+        path = shutil.which(override)
+        if path:
+            return path
+        sys.exit("EE_CALC_CHROMIUM is not an executable browser path.")
+    base = pathlib.Path.home() / ".cache/ms-playwright"
+    hits = list(base.glob("chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell"))
+    hits += list(base.glob("chromium_headless_shell-*/chrome-linux/headless_shell"))
+    hits = [p for p in hits if p.is_file() and os.access(p, os.X_OK)]
+    if hits:
+        return str(max(hits, key=lambda p: int(re.search(r"shell-(\d+)", str(p)).group(1))))
+    for name in ("chromium", "chromium-browser", "google-chrome", "brave"):
+        if path := shutil.which(name):
+            return path
+    sys.exit("No Chromium browser found; use --html-only or set EE_CALC_CHROMIUM.")
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--html-only", action="store_true")
+    args = parser.parse_args()
+    version = json.loads(MANIFEST.read_text())["version"]
+    source = SOURCE.read_text()
+    declared = re.search(r"^Version\s+(\S+)", source, re.M)
+    if not source.startswith("# EE Calc") or not declared or declared.group(1).removesuffix(".") != version:
+        sys.exit("Manual version must match manifest.json before printing.")
     html_body = subprocess.run(
         ["pandoc", "--from=gfm", "--to=html", str(SOURCE)],
         check=True, capture_output=True, text=True).stdout
-
-    def swap(match):
-        src = match.group(1)
-        light = IMAGE_MAP.get(src, src)
-        css_class = "overview" if light.endswith("overview.png") else "panel"
-        return f'<img src="{light}" class="{css_class}"'
-
-    html_body = re.sub(r'<img src="([^"]+)"', swap, html_body)
+    # The print edition is complete text/tables. Existing captures remain in
+    # the illustrated manual with their capture-version qualification.
+    def screen_reference(match):
+        alt = re.search(r'alt="([^"]*)"', match.group(0))
+        label = html.unescape(alt.group(1)) if alt else "screen example"
+        return "<em>Illustration in the electronic manual: " + html.escape(label) + ".</em>"
+    html_body = re.sub(r"<img\b[^>]*>", screen_reference, html_body, flags=re.S)
     html_body = oval_zeros(html_body)
-    missing = [p for p in re.findall(r'<img src="([^"]+)"', html_body) if not (DOCS / p).exists()]
-    if missing:
-        sys.exit(f"Missing images: {missing}")
-
     date = datetime.date.today().isoformat()
     page = ("<!doctype html><html><head><meta charset='utf-8'><title>EE Calc user manual</title>"
-            f"<style>{CSS % {'version': VERSION, 'date': date}}</style></head>"
+            f"<style>{CSS % {'version': version, 'date': date}}</style></head>"
             f"<body>{html_body}</body></html>")
-
-    # The HTML sits in docs/ so relative image paths resolve.
-    with tempfile.NamedTemporaryFile("w", suffix=".html", dir=DOCS, delete=False, encoding="utf-8") as f:
-        f.write(page)
-        html_path = f.name
-    try:
-        subprocess.run([find_chromium(), "--headless", "--disable-gpu", "--no-sandbox",
-                        "--no-pdf-header-footer", f"--print-to-pdf={OUTPUT}",
-                        pathlib.Path(html_path).as_uri()],
-                       check=True, capture_output=True, timeout=120)
-    finally:
-        os.unlink(html_path)
+    html_path = OUTPUT.with_suffix(".html")
+    html_path.write_text(page, encoding="utf-8")
+    if args.html_only:
+        print(f"wrote {html_path}")
+        return
+    subprocess.run([find_chromium(), "--headless", "--disable-gpu", "--no-sandbox",
+                    "--no-pdf-header-footer", f"--print-to-pdf={OUTPUT}",
+                    html_path.as_uri()], check=True, capture_output=True, timeout=60)
     print(f"wrote {OUTPUT}")
 
 

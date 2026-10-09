@@ -168,3 +168,8 @@ function themeColor(toml, key) {
 function overloaded(load) {
   return !!load && load.level === "over"
 }
+
+// Series advice must not hide the engine's package/range diagnosis.
+function suggestE24(block) {
+  return !!block && block.note === "not made at 5 % (E24 values only)"
+}

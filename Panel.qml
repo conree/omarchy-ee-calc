@@ -593,6 +593,17 @@ Panel {
 
   // Part numbers for one value, one row per maker. Clicking a number
   // copies it; a size Panasonic marks "not for new designs" says so.
+  component PowerScope: Text {
+    width: parent ? parent.width : 0
+    text: "Nominal power only. Check voltage rating and thermal derating separately."
+    textFormat: Text.PlainText
+    wrapMode: Text.Wrap
+    color: root.fg
+    opacity: 0.85
+    font.family: root.fontFamily
+    font.pixelSize: root.fs(Style.font.bodySmall)
+  }
+
   component PartList: Column {
     id: partList
     property string title: ""
@@ -604,6 +615,7 @@ Panel {
     visible: block !== null
     // When the panel knows a better next step than the engine's note.
     property bool seriesHint: false
+    readonly property bool showSeriesHint: seriesHint && Model.suggestE24(block)
 
     Text {
       text: partList.title + (partList.block && partList.block.value ? "  " + Model.text(partList.block.value) : "")
@@ -624,7 +636,7 @@ Panel {
       Text {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        text: partList.seriesHint ? "No 5 % part" : "No part"
+        text: partList.showSeriesHint ? "No 5 % part" : "No part"
         textFormat: Text.PlainText
         color: root.cCyan
         opacity: 0.85
@@ -635,7 +647,7 @@ Panel {
       Text {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        text: partList.seriesHint ? "choose E24"
+        text: partList.showSeriesHint ? "choose E24"
           : (partList.block && partList.block.note ? partList.block.note : "")
         textFormat: Text.PlainText
         color: root.cYellow
@@ -1422,7 +1434,7 @@ Panel {
           wrapMode: Text.Wrap
           textFormat: Text.PlainText
           text: root.engineChecked && !root.engineFound
-            ? "The calculator program bin/ee-calc is missing. Reinstall the plugin, or build it from source (see the README on GitHub)."
+            ? "The calculator program bin/ee-calc is missing. Reinstall the plugin using the README installation instructions."
             : root.errorText
           color: root.bad
           font.family: root.fontFamily
@@ -1631,6 +1643,8 @@ Panel {
             detailColor: root.cPurple
           }
 
+          PowerScope { }
+
           Item { width: 1; height: root.sp(6) }
 
           PartList {
@@ -1716,6 +1730,8 @@ Panel {
 
           Item { width: 1; height: root.sp(6) }
 
+          PowerScope { }
+
           PartList {
             title: "BEST R1  " + (root.result ? root.result.package + "  " + root.result.tolerance : "")
             seriesHint: root.seriesHint
@@ -1790,7 +1806,7 @@ Panel {
             visible: root.result !== null && root.result.smd !== undefined && !root.result.bands
             width: parent.width
             textFormat: Text.PlainText
-            text: "No colour bands for this value."
+            text: "This encoder cannot represent this value with four or five bands."
             color: root.cCyan
             opacity: 0.85
             font.family: root.fontFamily
@@ -1948,6 +1964,7 @@ Panel {
             value: parent.up && root.result ? root.loadText(parent.up.load, root.result.rating) : ""
             valueColor: parent.up ? root.loadColor(parent.up.load.level) : root.cYellow
           }
+          PowerScope { }
           Reading {
             label: "Power in each LED"
             value: parent.up ? Model.text(parent.up.pLed) : ""
