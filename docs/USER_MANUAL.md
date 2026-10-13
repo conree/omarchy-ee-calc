@@ -1,6 +1,6 @@
 # EE Calc user manual
 
-Version 0.3.2 (source on `main`; release pending). For EE Calc, the electronics bench calculator plugin for the
+Version 0.3.2. For EE Calc, the electronics bench calculator plugin for the
 Omarchy Quattro bar.
 
 ## 1. What EE Calc does

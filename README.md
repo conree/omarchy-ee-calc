@@ -43,7 +43,7 @@ automatically generated Contributors sidebar.
 
 ## Updates
 
-- **v0.3.2 — source on `main`, release pending:** fixes loaded-divider
+- **v0.3.2:** fixes loaded-divider
   shortlists, the full nine-option CLI, low-value colour-band encoding,
   tiny-result formatting and misleading part/power messages. Release
   metadata and the printable manual builder are synchronized.
