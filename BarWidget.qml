@@ -27,11 +27,46 @@ BarWidget {
 
   // ---- Panel plumbing. Bar.findPanelWidget requires open/close/opened on
   //      the bar-widget root, so the widget stands in as the panel's identity.
+  //
+  // The panel is loaded when it opens and unloaded once it has faded out.
+  // Every editable Qt text field re-reads the clipboard's text on each
+  // clipboard change, hidden or not, and on Wayland that read has no size cap
+  // or overall deadline, so the panel's fields exist only while it is in use.
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
-  function open() { if (panelLoader.item) panelLoader.item.open() }
+  function open() {
+    unloadTimer.stop()
+    panelLoader.active = true
+    if (panelLoader.item) panelLoader.item.open()
+  }
   function close() { if (panelLoader.item) panelLoader.item.close() }
-  function togglePanel() { if (panelLoader.item) panelLoader.item.toggle() }
+  function togglePanel() {
+    if (root.opened) root.close()
+    else root.open()
+  }
+
+  // Box values, tab modes and colour bands, held here while the panel is
+  // unloaded so closing it does not lose them. Not written to shell.json.
+  property var panelSession: null
+
+  readonly property bool panelIdle: panelLoader.item
+    ? panelLoader.item.opened !== true && panelLoader.item.windowVisible !== true
+    : false
+  onPanelIdleChanged: {
+    if (panelIdle) unloadTimer.restart()
+    else unloadTimer.stop()
+  }
+
+  Timer {
+    id: unloadTimer
+    interval: 250
+    onTriggered: {
+      var item = panelLoader.item
+      if (!item || !root.panelIdle) return
+      if (typeof item.saveSession === "function") root.panelSession = item.saveSession()
+      panelLoader.active = false
+    }
+  }
 
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
   function closeForPopoutSwitch() { if (panelLoader.item) panelLoader.item.closeForPopoutSwitch() }
@@ -56,7 +91,7 @@ BarWidget {
 
   Loader {
     id: panelLoader
-    active: true
+    active: false
     source: Qt.resolvedUrl("Panel.qml")
     visible: false
     onLoaded: {

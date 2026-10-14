@@ -43,6 +43,10 @@ automatically generated Contributors sidebar.
 
 ## Updates
 
+- **v0.3.3:** the panel is loaded only while it is open. Editable Qt text
+  boxes read the clipboard's text whenever it changes, even when hidden, so
+  EE Calc now has none while the panel is closed. Values and modes set in
+  the panel are still kept until the shell restarts.
 - **v0.3.2:** fixes loaded-divider
   shortlists, the full nine-option CLI, low-value colour-band encoding,
   tiny-result formatting and misleading part/power messages. Release
@@ -228,7 +232,8 @@ which the panel runs as you type. The program prints one
 JSON object and nothing else. It makes no network connections, needs no
 privileges and writes no files. The panel itself writes only its own
 entry in `shell.json` (the settings below). Copying a part number uses
-`wl-copy`, which Omarchy ships.
+`wl-copy`, which Omarchy ships. The panel is loaded only while it is open,
+so its text boxes do not read the clipboard while it is closed.
 
 The E-series tables are hard-coded from IEC 60063. E24 and the series
 below it include the historical values (2.7, 3.0, 3.3 … 8.2) that the

@@ -70,6 +70,7 @@ Panel {
     if (hostWidget && !tabRestored) {
       tab = Model.TABS.indexOf(hostWidget.tab) !== -1 ? hostWidget.tab : "E-series"
       tabRestored = true
+      restoreSession(hostWidget.panelSession)
     }
   }
   property string dividerMode: "Analyse"
@@ -322,7 +323,59 @@ Panel {
     function onShellValuesChanged() { themeColors.reload() }
   }
 
-  // ---- Panel lifecycle.
+  // ---- Panel lifecycle. The bar widget unloads this panel once it has
+  // closed and the window has faded out, and loads it again on the next open.
+  readonly property bool windowVisible: panel.visible
+
+  // Everything typed or picked that is not in shell.json. The bar widget
+  // keeps it while the panel is unloaded, until the shell restarts.
+  function sessionFields() {
+    return {
+      valueField: valueField,
+      vinField: vinField, r1Field: r1Field, r2Field: r2Field, rlField: rlField,
+      solveVinField: solveVinField, voutField: voutField, rminField: rminField,
+      rmaxField: rmaxField, solveRlField: solveRlField,
+      codesValueField: codesValueField, markingField: markingField,
+      ledVsField: ledVsField, ledVfField: ledVfField, ledIfField: ledIfField,
+      ledCountField: ledCountField,
+      ohmVField: ohmVField, ohmIField: ohmIField, ohmRField: ohmRField, ohmPField: ohmPField,
+      rcRField: rcRField, rcCField: rcCField, rcFField: rcFField, rcTauField: rcTauField,
+      lcLField: lcLField, lcCField: lcCField, lcFField: lcFField
+    }
+  }
+
+  function saveSession() {
+    var fields = sessionFields()
+    var texts = {}
+    for (var key in fields) texts[key] = fields[key].text
+    return {
+      dividerMode: dividerMode, codesMode: codesMode, ledMode: ledMode, rclcMode: rclcMode,
+      bandColours: bandColours.slice(), fields: texts,
+      // Shown at once on reopen, then refreshed, as when the panel stayed loaded.
+      result: result, errorText: errorText, engineFound: engineFound, version: version,
+      // As "#rrggbb" text: a color value does not outlive the panel.
+      colours: [cRed, cGreen, cYellow, cPurple, cPink, cCyan].map(function(c) { return String(c) })
+    }
+  }
+
+  function restoreSession(session) {
+    if (!session) return
+    dividerMode = session.dividerMode
+    codesMode = session.codesMode
+    ledMode = session.ledMode
+    rclcMode = session.rclcMode
+    bandColours = session.bandColours.slice()
+    var fields = sessionFields()
+    for (var key in session.fields) if (fields[key]) fields[key].text = session.fields[key]
+    if (session.engineFound) { engineFound = true; engineChecked = true }
+    if (!version) version = session.version
+    cRed = session.colours[0]; cGreen = session.colours[1]; cYellow = session.colours[2]
+    cPurple = session.colours[3]; cPink = session.colours[4]; cCyan = session.colours[5]
+    request()
+    result = session.result
+    errorText = session.errorText
+  }
+
   function open() {
     root.controller.show()
     // Re-checked on every open until found, so building the engine while
@@ -441,14 +494,13 @@ Panel {
     }
   }
 
+  // Detached, because the panel unloads soon after it closes and would take
+  // a still-running child process with it.
   function openManual() {
-    if (opener.running) return
-    opener.command = ["xdg-open", Model.manualUrl(version, tab, currentMode())]
-    opener.running = true
+    Util.execArgv(["xdg-open", Model.manualUrl(version, tab, currentMode())])
     root.close()
   }
 
-  Process { id: opener; running: false }
   Timer { id: copiedReset; interval: 1500; onTriggered: root.copiedMpn = "" }
 
   // 5 % parts exist only in E24 values, so an E48/E96/E192 result at 5 %

@@ -29,7 +29,7 @@ const parts = @import("parts.zig");
 const codes = @import("codes.zig");
 const circuits = @import("circuits.zig");
 
-const version = "0.3.2";
+const version = "0.3.3";
 // Greek capital omega rather than U+2126 OHM SIGN: far more fonts carry it.
 const ohm = "\u{03A9}";
 
