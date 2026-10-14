@@ -1,6 +1,6 @@
 # EE Calc user manual
 
-Version 0.3.3. For EE Calc, the electronics bench calculator plugin for the
+Version 0.3.4. For EE Calc, the electronics bench calculator plugin for the
 Omarchy Quattro bar.
 
 ## 1. What EE Calc does
@@ -50,7 +50,7 @@ omarchy plugin enable conree.ee-calc
 A calculator icon appears on the right of your bar, or wherever you placed
 it.
 The panel header shows the installed version next to the name, for example
-**EE Calc v0.3.3** for this candidate. Existing screenshots were captured
+**EE Calc v0.3.4** for this candidate. Existing screenshots were captured
 with v0.3.0 and illustrate the layout; the text describes the current
 behaviour. They are omitted from the low-ink print edition.
 
@@ -112,6 +112,14 @@ Limits:
 - The unit letter is not checked against the box. `10V` typed in a
   resistance box is read as 10 Ω.
 - Resistances, voltages and loads must be above zero.
+
+**Editing.** Typing, Backspace, Delete, the arrow keys, Home and End, and
+Shift to select work as usual. Ctrl+C copies, Ctrl+X cuts, and Ctrl+V or
+Shift+Insert pastes. A paste longer than 64 characters is ignored, and
+line breaks in it are dropped. The boxes read the clipboard only when you
+paste, so a program that never finishes handing over its clipboard cannot
+stall the shell. For the same reason there is no undo (Ctrl+Z), and
+middle-click and the right-click menu do not paste.
 
 ## 5. Series, Package and Tolerance
 

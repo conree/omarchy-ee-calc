@@ -97,6 +97,38 @@ function changeBandCount(bands, count) {
 // ---- The ? button. Each screen opens its own section of the user manual
 // on GitHub, at the release tag of the installed version, so the manual
 // matches the plugin. Anchors are GitHub's heading slugs.
+// ---- Editing. The panel's fields are read-only to Qt, because an editable
+// Qt field reads the clipboard's text on every clipboard change. Typing,
+// deleting and pasting are applied by the panel with these helpers instead.
+
+// The longest paste accepted: a value is never this long.
+var PASTE_MAX_CHARS = 64
+// Bytes read from the clipboard: 64 characters of up to four bytes each,
+// plus one, so a longer paste shows as too long rather than cut short.
+var PASTE_READ_BYTES = PASTE_MAX_CHARS * 4 + 1
+
+var CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g
+
+// Replace text[start, end) with insert. Returns the new text and where the
+// cursor goes, just after the insert.
+function replaceRange(text, start, end, insert) {
+  return { text: text.slice(0, start) + insert + text.slice(end), cursor: start + insert.length }
+}
+
+// The text a key press types, or "" for a key that types nothing.
+function typedText(text) {
+  var s = String(text || "")
+  return s !== "" && s.search(CONTROL_CHARS) === -1 ? s : ""
+}
+
+// Clipboard text as it goes into a field, or "" when it is too long to be
+// a value. Line breaks and other control characters are dropped.
+function pastedText(raw) {
+  var s = String(raw || "")
+  if (s.length > PASTE_MAX_CHARS) return ""
+  return s.replace(CONTROL_CHARS, "").trim()
+}
+
 var MANUAL_BASE = "https://github.com/conree/omarchy-ee-calc/blob/"
 var MANUAL_SECTIONS = {
   "E-series": "6-the-e-series-tab",

@@ -43,6 +43,11 @@ automatically generated Contributors sidebar.
 
 ## Updates
 
+- **v0.3.4:** the boxes read the clipboard only when you paste with
+  Ctrl+V or Shift+Insert, and then at most 64 characters, stopped after a
+  second or two.
+  Before, Qt read it on every clipboard change while the panel was open.
+  There is no undo, and middle-click no longer pastes.
 - **v0.3.3:** the panel is loaded only while it is open. Editable Qt text
   boxes read the clipboard's text whenever it changes, even when hidden, so
   EE Calc now has none while the panel is closed. Values and modes set in
@@ -233,7 +238,9 @@ JSON object and nothing else. It makes no network connections, needs no
 privileges and writes no files. The panel itself writes only its own
 entry in `shell.json` (the settings below). Copying a part number uses
 `wl-copy`, which Omarchy ships. The panel is loaded only while it is open,
-so its text boxes do not read the clipboard while it is closed.
+and its text boxes read the clipboard only when you paste, through
+`wl-paste`, stopped after at most two seconds, and take at most 64
+characters.
 
 The E-series tables are hard-coded from IEC 60063. E24 and the series
 below it include the historical values (2.7, 3.0, 3.3 … 8.2) that the

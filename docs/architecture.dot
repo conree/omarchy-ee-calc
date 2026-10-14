@@ -13,7 +13,7 @@ digraph eecalc {
          fontcolor="#036a96", fontsize=11]
 
   label=<<TABLE BORDER="0" CELLPADDING="2" CELLSPACING="0">
-    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#a3144d"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#644ac9"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#1f1f1f">   architecture, v0.3.3 candidate</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="24" COLOR="#a3144d"><B>EE </B></FONT><FONT POINT-SIZE="24" COLOR="#644ac9"><B>Calc</B></FONT><FONT POINT-SIZE="15" COLOR="#1f1f1f">   architecture, v0.3.4 candidate</FONT></TD></TR>
   </TABLE>>
   labelloc=t; labeljust=l
 

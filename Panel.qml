@@ -523,15 +523,79 @@ Panel {
 
   // Keys typed into a field belong to the field. Esc closes the panel in one
   // press, and Enter runs the engine at once instead of waiting out the
-  // debounce.
-  function fieldKey(event) {
+  // debounce. Everything else is editing, done here because the fields are
+  // read-only to Qt (see Field). Qt still moves the cursor and selects with
+  // the mouse and Shift; keys not accepted here fall through to it.
+  function fieldKey(event, field) {
     if (event.key === Qt.Key_Escape) {
       root.close()
-      event.accepted = true
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       debounce.stop()
       launch()
-      event.accepted = true
+    } else if (event.matches(StandardKey.SelectAll)) {
+      field.selectAll()
+    } else if (event.matches(StandardKey.Copy)) {
+      field.copy()
+    } else if (event.matches(StandardKey.Paste)) {
+      pasteInto(field)
+    } else if (event.matches(StandardKey.Cut)) {
+      if (field.selectedText !== "") {
+        field.copy()
+        typeInto(field, "")
+      }
+    } else if (event.key === Qt.Key_Backspace) {
+      if (field.selectedText === "" && field.cursorPosition > 0)
+        field.select(field.cursorPosition - 1, field.cursorPosition)
+      typeInto(field, "")
+    } else if (event.key === Qt.Key_Delete) {
+      if (field.selectedText === "" && field.cursorPosition < field.text.length)
+        field.select(field.cursorPosition, field.cursorPosition + 1)
+      typeInto(field, "")
+    } else {
+      var typed = event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)
+        ? "" : Model.typedText(event.text)
+      if (typed === "") return
+      typeInto(field, typed)
+    }
+    event.accepted = true
+  }
+
+  // Type over the selection, or at the cursor when nothing is selected.
+  function typeInto(field, value) {
+    var start = field.selectedText !== "" ? field.selectionStart : field.cursorPosition
+    var end = field.selectedText !== "" ? field.selectionEnd : field.cursorPosition
+    var edit = Model.replaceRange(field.text, start, end, value)
+    field.text = edit.text
+    field.cursorPosition = edit.cursor
+  }
+
+  // Ctrl+V and Shift+Insert. The clipboard is read by wl-paste in its own
+  // process, cut off after a second and Model.PASTE_READ_BYTES bytes, so a
+  // clipboard owner that never finishes cannot hold up the shell. The
+  // script is constant; nothing from the clipboard reaches a shell.
+  property Item pasteTarget: null
+  function pasteInto(field) {
+    if (paster.running) return
+    pasteTarget = field
+    paster.running = true
+  }
+
+  function receivePaste(raw) {
+    var field = pasteTarget
+    pasteTarget = null
+    if (!field || !field.activeFocus) return
+    var value = Model.pastedText(raw)
+    if (value !== "") typeInto(field, value)
+  }
+
+  Process {
+    id: paster
+    running: false
+    command: ["sh", "-c", "timeout -k 1 1 wl-paste --no-newline --type text 2>/dev/null | head -c "
+      + Model.PASTE_READ_BYTES]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.receivePaste(text)
     }
   }
 
@@ -575,9 +639,39 @@ Panel {
       font.pixelSize: root.fs(Style.font.body)
       font.weight: Font.Medium
       selectByMouse: true
+      // Read-only to Qt: an editable Qt field reads the clipboard's text on
+      // every clipboard change, with no size or time limit on Wayland.
+      // fieldKey() does the typing, and pastes only on Ctrl+V.
+      readOnly: true
+      // A read-only field hides Qt's cursor, so it draws its own.
+      cursorVisible: activeFocus
+      cursorDelegate: Rectangle {
+        id: caret
+        property bool lit: true
+        width: Math.max(1, Math.round(root.sp(1)))
+        color: root.cYellow
+        visible: input.activeFocus && lit
+        Timer {
+          interval: 530
+          repeat: true
+          running: input.activeFocus
+          onTriggered: caret.lit = !caret.lit
+        }
+        Connections {
+          target: input
+          function onCursorPositionChanged() { caret.lit = true }
+        }
+      }
       onTextChanged: root.request()
       onActiveFocusChanged: root.trackFocus(input)
-      Keys.onPressed: function(event) { root.fieldKey(event) }
+      Keys.onPressed: function(event) { root.fieldKey(event, input) }
+      // A read-only field lets window shortcuts take these keys first, so a
+      // right-clicked field's context menu would answer Ctrl+A for another
+      // field. Claiming them sends them to fieldKey() instead.
+      Keys.onShortcutOverride: function(event) {
+        event.accepted = event.matches(StandardKey.SelectAll) || event.matches(StandardKey.Copy)
+          || event.matches(StandardKey.Paste) || event.matches(StandardKey.Cut)
+      }
     }
 
     Text {
@@ -908,7 +1002,8 @@ Panel {
     onTextKey: function(text) {
       root.focusFirstField()
       var f = root.focusedField
-      if (f && typeof f.insert === "function") f.insert(f.cursorPosition, text)
+      var typed = Model.typedText(text)
+      if (f && typed !== "") root.typeInto(f, typed)
     }
     onActivateRequested: { debounce.stop(); root.launch() }
     onTabRequested: function(direction) { root.switchPanel(direction) }
